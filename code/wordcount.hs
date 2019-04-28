@@ -1,6 +1,7 @@
 import Conduit
 import Control.Monad
 import Data.Char (isAlphaNum)
+import Data.HashMap.Strict (empty, insertWith, toList)
 import Data.List.Split
 import Data.Text (pack, unpack, toLower)
 import System.IO
@@ -9,10 +10,12 @@ standard :: IO ()
 standard = do
     withFile "input.txt" ReadMode $ \handle -> do
         content <- hGetContents handle
-        putStrLn $ concat 
-            $ splitOn " " 
-            $ (filter isAlphaNum) 
-            $ (unpack . toLower . pack) content
+        putStrLn $ foldr 
+            (++)
+            ""
+            (fmap (unpack . toLower . pack)
+                $ fmap (filter isAlphaNum)
+                $ splitOn " " content)
 
 
 
@@ -23,4 +26,3 @@ main = do
     case choice of
         "1" -> standard
         _ -> main
-
