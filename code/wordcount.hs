@@ -10,9 +10,9 @@ standard :: IO ()
 standard = do
     withFile "input.txt" ReadMode $ \handle -> do
         content <- hGetContents handle
-        putStrLn $ foldr 
-            (++)
-            ""
+        putStrLn $ show $ foldr
+            (\x v -> insertWith (+) x 1 v) 
+            empty 
             (fmap (unpack . toLower . pack)
                 $ fmap (filter isAlphaNum)
                 $ splitOn " " content)
