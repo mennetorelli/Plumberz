@@ -24,9 +24,12 @@ wordcountC = do
         .| foldC
     count <- runConduit $ yieldMany (Data.Text.words text)
         .| mapC (Data.Text.filter isAlphaNum)
-        .| mapC (Data.Text.toLower)
-        .| sinkList
+        .| mapC Data.Text.toLower
+        .| foldMC insertInHashMap empty
     print count
+
+insertInHashMap x v = do
+    return (insertWith (+) v 1 x)
 
 
 main :: IO ()
