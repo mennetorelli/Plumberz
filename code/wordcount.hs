@@ -6,15 +6,14 @@ import Data.Text (pack, unpack, toLower, splitOn, filter, words)
 import System.IO
 
 wordcount :: IO ()
-wordcount = do
-    withFile "input.txt" ReadMode $ \handle -> do
-        content <- hGetContents handle
-        putStrLn $ show $ foldr
-            (\x v -> insertWith (+) x 1 v) 
-            empty 
-            (fmap toLower 
-                $ fmap (Data.Text.filter isAlphaNum)
-                $ (Data.Text.words . pack) content)
+wordcount = withFile "input.txt" ReadMode $ \handle -> do
+    content <- hGetContents handle
+    putStrLn $ show . toList $ foldr
+        (\x v -> insertWith (+) x 1 v) 
+        empty 
+        (fmap toLower 
+            $ fmap (Data.Text.filter isAlphaNum)
+            $ (Data.Text.words . pack) content)
 
 
 wordcountC :: IO ()
@@ -26,7 +25,7 @@ wordcountC = do
         .| mapC (Data.Text.filter isAlphaNum)
         .| mapC toLower
         .| foldMC insertInHashMap empty
-    print hashMap
+    print (toList hashMap)
 
 insertInHashMap x v = do
     return (insertWith (+) v 1 x)
