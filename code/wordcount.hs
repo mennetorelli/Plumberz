@@ -3,12 +3,14 @@ import Control.Monad
 import Data.Char (isAlphaNum)
 import Data.HashMap.Strict (empty, insertWith, toList)
 import Data.Text (pack, unpack, toLower, splitOn, filter, words)
+import Data.Time.Clock
 import System.IO
+
 
 wordcount :: IO ()
 wordcount = withFile "input.txt" ReadMode $ \handle -> do
     content <- hGetContents handle
-    putStrLn $ show . toList $ foldr
+    print $ toList $ foldr
         (\x v -> insertWith (+) x 1 v) 
         empty 
         (fmap toLower 
