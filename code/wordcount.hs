@@ -39,6 +39,14 @@ main = do
     putStrLn "2: wordcount with Conduit"
     choice <- getLine
     case choice of
-        "1" -> wordcount
-        "2" -> wordcountC
+        "1" -> do 
+            startTime <- getCurrentTime
+            wordcount
+            endTime <- getCurrentTime
+            print $ diffUTCTime endTime startTime
+        "2" -> do
+            startTime <- getCurrentTime
+            wordcountC
+            endTime <- getCurrentTime
+            print $ diffUTCTime endTime startTime
         _ -> main
