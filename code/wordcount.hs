@@ -2,7 +2,6 @@ import Conduit
 import Control.Monad
 import Data.Char (isAlphaNum)
 import Data.HashMap.Strict (empty, insertWith, toList)
-import Data.List.Split (splitOn)
 import Data.Text (pack, unpack, toLower, splitOn, filter, words)
 import System.IO
 
@@ -13,20 +12,21 @@ wordcount = do
         putStrLn $ show $ foldr
             (\x v -> insertWith (+) x 1 v) 
             empty 
-            (fmap (unpack . Data.Text.toLower . pack)
-                $ fmap (Prelude.filter isAlphaNum)
-                $ Data.List.Split.splitOn " " content)
+            (fmap toLower 
+                $ fmap (Data.Text.filter isAlphaNum)
+                $ (Data.Text.words . pack) content)
+
 
 wordcountC :: IO ()
 wordcountC = do
-    text <- runConduitRes $ sourceFile "input.txt"
+    content <- runConduitRes $ sourceFile "input.txt"
         .| decodeUtf8C
         .| foldC
-    count <- runConduit $ yieldMany (Data.Text.words text)
+    hashMap <- runConduit $ yieldMany (Data.Text.words content)
         .| mapC (Data.Text.filter isAlphaNum)
-        .| mapC Data.Text.toLower
+        .| mapC toLower
         .| foldMC insertInHashMap empty
-    print count
+    print hashMap
 
 insertInHashMap x v = do
     return (insertWith (+) v 1 x)
