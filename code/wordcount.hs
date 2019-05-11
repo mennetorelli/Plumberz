@@ -1,8 +1,8 @@
 import Conduit
 import Control.Monad
-import Data.Char (isAlphaNum, isSpace, toLower)
+import Data.Char (isAlphaNum, toLower)
 import Data.HashMap.Strict (empty, insertWith, toList)
-import Data.Text (pack, unpack, toLower, splitOn, filter, words)
+import Data.Text (pack, toLower, filter, words)
 import Data.Time.Clock
 import System.IO
 
