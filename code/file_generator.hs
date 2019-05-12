@@ -12,6 +12,7 @@ main = do
     putStrLn "Number of times:"
     times <- getLine
     generateFile $ read times
+    putStrLn "Done!"
 
 
 content :: String
