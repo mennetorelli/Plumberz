@@ -32,12 +32,13 @@ main :: IO ()
 main = do
     putStrLn "1: input from file"
     putStrLn "2: input from stdin"
+    putStrLn "3: exit"
     choice <- getLine
     case choice of
-        "1" -> do 
-            client_file
-        "2" -> do
-            client_stdin
+        "1" -> client_file
+        "2" -> client_stdin
+        "3" -> return ()
+    main
 
     
 
