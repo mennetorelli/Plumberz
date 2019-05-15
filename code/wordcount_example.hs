@@ -1,6 +1,7 @@
 import Conduit
 import Control.Monad
 import Data.Char (isAlphaNum, toLower)
+import qualified Data.Conduit.Combinators as CC
 import Data.HashMap.Strict (empty, insertWith, toList)
 import Data.Text (pack, toLower, filter, words)
 import Data.Time.Clock
@@ -39,9 +40,19 @@ wordcountCv2 = do
         .| decodeUtf8C
         .| omapCE Data.Char.toLower
         .| peekForeverE (do
-            word <- takeWhileCE isAlphaNum
+            word <- takeWhileCE isAlphaNum .| foldC
             dropCE 1
-            return word)
+            yield word)
+        .| foldMC insertInHashMap empty
+    print (toList hashMap)
+
+
+wordcountCv3 :: IO ()
+wordcountCv3 = do 
+    hashMap <- runConduitRes $ sourceFile "input.txt"
+        .| decodeUtf8C
+        .| omapCE Data.Char.toLower
+        .| CC.splitOnUnboundedE (not . isAlphaNum)
         .| foldMC insertInHashMap empty
     print (toList hashMap)
 
@@ -52,6 +63,7 @@ main = do
     putStrLn "1: wordcount without Conduit"
     putStrLn "2: wordcount with Conduit"
     putStrLn "3: wordcount with Conduit v2"
+    putStrLn "4: wordcount with Conduit v3"
     choice <- getLine
     case choice of
         "1" -> do 
@@ -67,6 +79,11 @@ main = do
         "3" -> do
             startTime <- getCurrentTime
             wordcountCv2
+            endTime <- getCurrentTime
+            print $ diffUTCTime endTime startTime
+        "4" -> do
+            startTime <- getCurrentTime
+            wordcountCv3
             endTime <- getCurrentTime
             print $ diffUTCTime endTime startTime
         _ -> main
