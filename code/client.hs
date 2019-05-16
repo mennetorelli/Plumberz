@@ -2,17 +2,13 @@
 import Control.Concurrent.Async (concurrently)
 import Conduit
 import Control.Monad (void)
-import qualified Data.Conduit.Combinators as CC
 import Data.Conduit.Network
-import Data.Word8 (toLower, isAlphaNum)
 
 
 client_file :: IO ()
 client_file = runTCPClient (clientSettings 4000 "localhost") $ \server ->
     void $ concurrently
         (runConduitRes $ sourceFile "input.txt"
-            .| omapCE toLower
-            .| CC.splitOnUnboundedE (not . isAlphaNum)
             .| appSink server)
         (runConduit $ appSource server 
             .| stdoutC)
@@ -22,8 +18,6 @@ client_stdin :: IO ()
 client_stdin = runTCPClient (clientSettings 4000 "localhost") $ \server ->
     void $ concurrently
         (runConduit $ stdinC
-            .| omapCE toLower
-            .| CC.splitOnUnboundedE (not . isAlphaNum)
             .| appSink server)
         (runConduit $ appSource server 
             .| stdoutC)
