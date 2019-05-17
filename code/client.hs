@@ -18,8 +18,6 @@ client_file = runTCPClient (clientSettings 4000 "localhost") $ \server ->
         (runConduit $ appSource server 
             .| stdoutC)
 
-doneWriting = maybe (pure ()) (`shutdown` ShutdownSend) . appRawSocket
-
 
 client_stdin :: IO ()
 client_stdin = runTCPClient (clientSettings 4000 "localhost") $ \server ->
@@ -29,6 +27,8 @@ client_stdin = runTCPClient (clientSettings 4000 "localhost") $ \server ->
         (runConduit $ appSource server 
             .| stdoutC)
 
+
+doneWriting = maybe (pure ()) (`shutdown` ShutdownSend) . appRawSocket
 
 
 main :: IO ()
