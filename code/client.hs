@@ -24,7 +24,7 @@ doneWriting = maybe (pure ()) (`shutdown` ShutdownSend) . appRawSocket
 client_stdin :: IO ()
 client_stdin = runTCPClient (clientSettings 4000 "localhost") $ \server ->
     void $ concurrently
-        ((runConduitRes $ stdinC
+        ((runConduit $ stdinC
             .| appSink server) >> doneWriting server)
         (runConduit $ appSource server 
             .| stdoutC)
@@ -40,11 +40,13 @@ main = do
     case choice of
         "1" -> do
             client_file
+            putStrLn ""
             main
         "2" -> do
             client_stdin
+            putStrLn ""
             main
-        "3" -> return ()
+        _ -> return ()
 
 
     
