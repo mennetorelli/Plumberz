@@ -16,13 +16,6 @@ import Control.Concurrent.Async
 import System.Timeout
 
 
-main2 :: IO ()
-main2 = runTCPServer (serverSettings 4000 "*") $ \appData -> do
-    hashMap <- runConduit $ appSource appData 
-        .| timedWindow 5000000
-    return ()
-
-
 main :: IO ()
 main = runTCPServer (serverSettings 4000 "*") $ \appData -> do
     hashMapMVar <- newMVar empty
@@ -36,30 +29,8 @@ main = runTCPServer (serverSettings 4000 "*") $ \appData -> do
         (forever $ do 
             threadDelay 5000000
             hashMap <- takeMVar hashMapMVar
-            print $ toList hashMap)
-            -- runConduit $ yield (pack $ show $ toList hashMap)
-            --    .| iterMC print)
-            --    .| appSink appData)
-
-
-timedWindow t = do
-    v <- lift $ newMVar empty
-    lift $ async $ timer' t v empty
-    wordcount' empty v
-
-timer' w v e = do
-    threadDelay w
-    c <- takeMVar v
-    print $ toList c
-    putMVar v e
-    timer' w v e
-
-wordcount' e v = do
-    x <- await
-    s' <- lift $ takeMVar v
-    lift $ putMVar v $ insertWith (+) x 1 s'
-    wordcount' e v
-
+            runConduit $ yield (pack $ show $ toList hashMap)
+                .| appSink appData)
 
 insertInHashMap x v = do
     return (insertWith (+) v 1 x)
