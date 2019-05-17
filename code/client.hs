@@ -1,24 +1,31 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 import Control.Concurrent.Async (concurrently)
+import Data.Functor (void)
+
 import Conduit
-import Control.Monad (void)
 import Data.Conduit.Network
+
+import Data.Streaming.Network (appRawSocket)
+import Network.Socket (shutdown, ShutdownCmd(..))
 
 
 client_file :: IO ()
 client_file = runTCPClient (clientSettings 4000 "localhost") $ \server ->
     void $ concurrently
-        (runConduitRes $ sourceFile "input.txt"
-            .| appSink server)
+        ((runConduitRes $ sourceFile "input.txt" 
+            .| appSink server) >> doneWriting server)
         (runConduit $ appSource server 
             .| stdoutC)
+
+doneWriting = maybe (pure ()) (`shutdown` ShutdownSend) . appRawSocket
 
 
 client_stdin :: IO ()
 client_stdin = runTCPClient (clientSettings 4000 "localhost") $ \server ->
     void $ concurrently
-        (runConduit $ stdinC
-            .| appSink server)
+        ((runConduitRes $ stdinC
+            .| appSink server) >> doneWriting server)
         (runConduit $ appSource server 
             .| stdoutC)
 
