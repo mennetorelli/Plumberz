@@ -16,8 +16,8 @@ import Control.Concurrent.Async
 import System.Timeout
 
 
-main :: IO ()
-main = runTCPServer (serverSettings 4000 "*") $ \appData -> do
+server :: Int -> IO ()
+server timeWindow = runTCPServer (serverSettings 4000 "*") $ \appData -> do
     hashMapMVar <- newMVar empty
     void $ concurrently
         (do 
@@ -27,10 +27,17 @@ main = runTCPServer (serverSettings 4000 "*") $ \appData -> do
                 .| foldMC insertInHashMap empty
             putMVar hashMapMVar hashMap)
         (forever $ do 
-            threadDelay 5000000
+            threadDelay timeWindow
             hashMap <- takeMVar hashMapMVar
             runConduit $ yield (pack $ show $ toList hashMap)
                 .| appSink appData)
 
 insertInHashMap x v = do
     return (insertWith (+) v 1 x)
+
+
+main :: IO ()
+main = do
+    putStrLn "Insert time window (in seconds)"
+    timeWindow <- getLine
+    server $ (read timeWindow) * 1000000
