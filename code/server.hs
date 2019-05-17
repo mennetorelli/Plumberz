@@ -9,17 +9,6 @@ import qualified Data.Conduit.Combinators as CC
 import Data.Conduit.Network
 
 
-main2 :: IO ()
-main2 = runTCPServer (serverSettings 4000 "*") $ \appData -> 
-    runConduit $ appSource appData 
-        .| omapCE toLower
-        .| CC.splitOnUnboundedE (not . isAlphaNum)
-        .| do
-            hashMap <- foldMC insertInHashMap empty
-            yield (pack $ show $ hashMap)
-            iterMC print 
-        .| appSink appData
-
 main :: IO ()
 main = runTCPServer (serverSettings 4000 "*") $ \appData -> do
     hashMap <- runConduit $ appSource appData 
