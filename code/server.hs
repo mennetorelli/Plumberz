@@ -1,10 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
+
+import Data.ByteString.Char8 (pack)
+import Data.Word8 (toLower, isAlphaNum)
+import Data.HashMap.Strict (empty, insertWith, toList)
+
 import Conduit
 import qualified Data.Conduit.Combinators as CC
 import Data.Conduit.Network
-import Data.HashMap.Strict (empty, insertWith, toList)
-import Data.ByteString.Char8 (pack)
-import Data.Word8 (toLower, isAlphaNum)
+
 
 main2 :: IO ()
 main2 = runTCPServer (serverSettings 4000 "*") $ \appData -> 
