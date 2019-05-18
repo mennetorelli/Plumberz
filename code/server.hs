@@ -27,9 +27,6 @@ server = runTCPServer (serverSettings 4000 "*") $ \appData -> do
         .| iterMC print
         .| appSink appData
 
-insertInHashMap x v = do
-    return (insertWith (+) v 1 x)
-
 
 server_tw :: Int -> IO ()
 server_tw timeWindow = runTCPServer (serverSettings 4000 "*") $ \appData -> do
@@ -69,17 +66,27 @@ server_tw2 timeWindow = runTCPServer (serverSettings 4000 "*") $ \appData -> do
         (forever $ do 
             threadDelay timeWindow
             putMVar timeOut True)-}
-            
+
+
+insertInHashMap x v = do
+    return (insertWith (+) v 1 x)
+    
 
 
 main :: IO ()
 main = do
-    putStrLn "Server without time window"
-    putStrLn "Server with time window"
+    putStrLn "1: server without time window"
+    putStrLn "2: server with time window"
     choice <- getLine
     case choice of
-        "1" -> server
+        "1" -> do
+            putStrLn "Server started"
+            server
         "2" -> do
             putStrLn "Insert time window (in seconds)"
             timeWindow <- getLine
+            putStrLn "Server started"
             server_tw $ (read timeWindow) * 1000000
+        _ -> do
+            putStrLn "Invalid command"
+            main

@@ -38,14 +38,11 @@ client_stdin = runTCPClient (clientSettings 4000 "localhost") $ \server ->
             .| stdoutC)
 
 
-doneWriting = maybe (pure ()) (`shutdown` ShutdownSend) . appRawSocket
-
 
 main :: IO ()
 main = do
     putStrLn "1: input from file"
     putStrLn "2: input from stdin"
-    putStrLn "3: exit"
     choice <- getLine
     case choice of
         "1" -> do
@@ -56,7 +53,9 @@ main = do
             client_stdin
             putStrLn ""
             main
-        _ -> return ()
+        _ -> do
+            putStrLn "Invalid command"
+            main
 
 
     

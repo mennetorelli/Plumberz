@@ -1,11 +1,15 @@
-import Conduit
 import Control.Monad
+
 import Data.Char (isAlphaNum, toLower)
-import qualified Data.Conduit.Combinators as CC
 import Data.HashMap.Strict (empty, insertWith, toList)
 import Data.Text (pack, toLower, filter, words)
-import Data.Time.Clock
+
 import System.IO
+
+import Conduit
+import qualified Data.Conduit.Combinators as CC
+
+import Data.Time.Clock
 
 
 wordcount :: IO ()
@@ -30,9 +34,6 @@ wordcountC = do
         .| foldMC insertInHashMap empty
     print (toList hashMap)
 
-insertInHashMap x v = do
-    return (insertWith (+) v 1 x)
-
 
 wordcountCv2 :: IO ()
 wordcountCv2 = do 
@@ -55,6 +56,10 @@ wordcountCv3 = do
         .| CC.splitOnUnboundedE (not . isAlphaNum)
         .| foldMC insertInHashMap empty
     print (toList hashMap)
+
+
+insertInHashMap x v = do
+    return (insertWith (+) v 1 x)
 
 
 
@@ -86,4 +91,6 @@ main = do
             wordcountCv3
             endTime <- getCurrentTime
             print $ diffUTCTime endTime startTime
-        _ -> main
+        _ -> do
+            putStrLn "Invalid command"
+            main
