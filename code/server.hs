@@ -17,14 +17,13 @@ import System.Timeout
 
 
 server :: IO ()
-server = runTCPServer (serverSettings 4000 "*") $ \appData -> do
+server = runTCPServer (serverSettings 4000 "*") $ \appData -> forever $ do
     hashMap <- runConduit $ appSource appData 
         .| takeWhileCE (/= _percent)
         .| omapCE toLower
         .| CC.splitOnUnboundedE (not . isAlphaNum)
         .| foldMC insertInHashMap empty
     runConduit $ yield (pack $ show $ toList hashMap)
-        .| iterMC print
         .| appSink appData
 
 
@@ -43,7 +42,6 @@ server_tw timeWindow = runTCPServer (serverSettings 4000 "*") $ \appData -> do
             threadDelay timeWindow
             hashMap <- takeMVar hashMapMVar
             runConduit $ yield (pack $ show $ toList hashMap)
-                .| iterMC print
                 .| appSink appData)
 
 
@@ -70,7 +68,7 @@ server_tw2 timeWindow = runTCPServer (serverSettings 4000 "*") $ \appData -> do
 
 insertInHashMap x v = do
     return (insertWith (+) v 1 x)
-    
+
 
 
 main :: IO ()
