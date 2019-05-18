@@ -29,9 +29,11 @@ client_file = runTCPClient (clientSettings 4000 "localhost") $ \server ->
 client_stdin :: IO ()
 client_stdin = runTCPClient (clientSettings 4000 "localhost") $ \server ->
     void $ concurrently
-        ((runConduit $ stdinC
-            .| takeWhileCE (/= _cr)
-            .| appSink server))
+        (forever $ runConduit $ stdinC
+            .| do 
+                takeWhileCE (/= _cr)
+                yield (pack "%")
+            .| appSink server)
         (runConduit $ appSource server 
             .| stdoutC)
 
