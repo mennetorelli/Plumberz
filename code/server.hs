@@ -34,7 +34,7 @@ server_tw :: Int -> IO ()
 server_tw timeWindow = runTCPServer (serverSettings 4000 "*") $ \appData -> do
     hashMapMVar <- newMVar empty
     void $ concurrently
-        (do 
+        (forever $ do 
             hashMap <- runConduit $ appSource appData 
                 .| omapCE toLower
                 .| CC.splitOnUnboundedE (not . isAlphaNum)
@@ -44,8 +44,31 @@ server_tw timeWindow = runTCPServer (serverSettings 4000 "*") $ \appData -> do
             threadDelay timeWindow
             hashMap <- takeMVar hashMapMVar
             runConduit $ yield (pack $ show $ toList hashMap)
+                .| iterMC print
                 .| appSink appData)
-    
+
+
+{-server_tw2 :: Int -> IO ()
+server_tw2 timeWindow = runTCPServer (serverSettings 4000 "*") $ \appData -> do
+    timeOut <- newMVar False
+    void $ concurrently
+        (do 
+            hashMap <- runConduit $ appSource appData 
+                .| omapCE toLower
+                .| CC.splitOnUnboundedE (not . isAlphaNum)
+                .| do
+                    timeOutValue <- takeMVar timeOut
+                    if timeOutValue == True
+                        then foldMC insertInHashMap empty
+                        else lift $ return ()
+            runConduit $ yield (pack $ show $ toList hashMap)
+                .| iterMC print
+                .| appSink appData)
+        (forever $ do 
+            threadDelay timeWindow
+            putMVar timeOut True)-}
+            
+
 
 main :: IO ()
 main = do

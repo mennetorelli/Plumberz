@@ -2,6 +2,9 @@
 
 import Control.Concurrent.Async (concurrently)
 import Data.Functor (void)
+import Control.Monad (forever)
+
+import Data.Word8 (_cr)
 
 import Conduit
 import Data.Conduit.Network
@@ -23,6 +26,7 @@ client_stdin :: IO ()
 client_stdin = runTCPClient (clientSettings 4000 "localhost") $ \server ->
     void $ concurrently
         ((runConduit $ stdinC
+            .| takeWhileCE (/= _cr)
             .| appSink server) >> doneWriting server)
         (runConduit $ appSource server 
             .| stdoutC)
