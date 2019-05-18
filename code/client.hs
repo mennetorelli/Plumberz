@@ -4,6 +4,7 @@ import Control.Concurrent.Async (concurrently)
 import Data.Functor (void)
 import Control.Monad (forever)
 
+import Data.ByteString.Char8 (pack)
 import Data.Word8 (_cr)
 
 import Conduit
@@ -16,8 +17,11 @@ import Network.Socket (shutdown, ShutdownCmd(..))
 client_file :: IO ()
 client_file = runTCPClient (clientSettings 4000 "localhost") $ \server ->
     void $ concurrently
-        ((runConduitRes $ sourceFile "input.txt" 
-            .| appSink server) >> doneWriting server)
+        (runConduitRes $ 
+            do
+                sourceFile "input.txt"
+                yield (pack "%")
+            .| appSink server)
         (runConduit $ appSource server 
             .| stdoutC)
 
@@ -27,7 +31,7 @@ client_stdin = runTCPClient (clientSettings 4000 "localhost") $ \server ->
     void $ concurrently
         ((runConduit $ stdinC
             .| takeWhileCE (/= _cr)
-            .| appSink server) >> doneWriting server)
+            .| appSink server))
         (runConduit $ appSource server 
             .| stdoutC)
 

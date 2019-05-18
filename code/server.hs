@@ -5,7 +5,7 @@ import Data.Functor (void)
 
 import Data.ByteString.Char8 (pack)
 import Data.HashMap.Strict (empty, insertWith, toList)
-import Data.Word8 (toLower, isAlphaNum)
+import Data.Word8 (toLower, isAlphaNum, _percent)
 
 import Conduit
 import qualified Data.Conduit.Combinators as CC
@@ -19,6 +19,7 @@ import System.Timeout
 server :: IO ()
 server = runTCPServer (serverSettings 4000 "*") $ \appData -> do
     hashMap <- runConduit $ appSource appData 
+        .| takeWhileCE (/= _percent)
         .| omapCE toLower
         .| CC.splitOnUnboundedE (not . isAlphaNum)
         .| foldMC insertInHashMap empty
@@ -35,7 +36,8 @@ server_tw timeWindow = runTCPServer (serverSettings 4000 "*") $ \appData -> do
     hashMapMVar <- newMVar empty
     void $ concurrently
         (forever $ do 
-            hashMap <- runConduit $ appSource appData 
+            hashMap <- runConduit $ appSource appData
+                .| takeWhileCE (/= _percent)
                 .| omapCE toLower
                 .| CC.splitOnUnboundedE (not . isAlphaNum)
                 .| foldMC insertInHashMap empty
