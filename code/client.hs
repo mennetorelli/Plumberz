@@ -17,11 +17,13 @@ import Network.Socket (shutdown, ShutdownCmd(..))
 client_file :: IO ()
 client_file = runTCPClient (clientSettings 4000 "localhost") $ \server ->
     void $ concurrently
-        (runConduitRes $ 
-            do
-                sourceFile "input.txt"
-                yield (pack "%")
-            .| appSink server)
+        (forever $ do    
+            getLine
+            runConduitRes $ 
+                do
+                    sourceFile "input.txt"
+                    yield (pack "%")
+                .| appSink server)
         (runConduit $ appSource server 
             .| stdoutC)
 
@@ -46,17 +48,11 @@ main = do
     choice <- getLine
     case choice of
         "1" -> do
+            putStrLn "Press any key to send the file"
             client_file
-            putStrLn ""
-            main
         "2" -> do
+            putStrLn "Type something and press enter"
             client_stdin
-            putStrLn ""
-            main
         _ -> do
             putStrLn "Invalid command"
             main
-
-
-    
-
