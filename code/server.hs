@@ -39,21 +39,20 @@ server_tw timeWindow = runTCPServer (serverSettings 4000 "*") $ \appData -> do
                 .| CC.splitOnUnboundedE (not . isAlphaNum)
                 .| foldMC insertInHashMap empty
             queuedHashMap <- tryTakeMVar hashMapMVar
-            putMVar hashMapMVar $ unionWith (+) hashMap (if queuedHashMap == Nothing 
-                                                            then empty 
-                                                            else fromJust queuedHashMap))
+            putMVar hashMapMVar $ unionWith (+) hashMap (extractHashMap queuedHashMap))
         (forever $ do 
             threadDelay timeWindow
             hashMap <- tryTakeMVar hashMapMVar
-            runConduit $ yield (pack $ show $ toList (if hashMap == Nothing 
-                                                            then empty 
-                                                            else fromJust hashMap))
+            runConduit $ yield (pack $ show $ toList (extractHashMap hashMap))
                 .| appSink appData)
 
 
 insertInHashMap x v = do
     return (insertWith (+) v 1 x)
 
+extractHashMap hashMap = if hashMap == Nothing 
+                            then empty 
+                            else fromJust hashMap
 
 
 main :: IO ()
