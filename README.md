@@ -66,7 +66,7 @@ Finally, a pipeline is run with the `runConduit` function.
 # Batch wordcount with Conduit
 To understand better how the library works, we implemented a simple wordcount script. The rationale is the following: the script reads from a .txt file, and counts occurrences of all the words contained into it, and finally prints the result to the user. 
 
-All the versions descrived in this paragraph are in the [wordcount_example.hs](https://github.com/mennetorelli/Plumberz/blob/master/code/wordcount_example.hs) file.
+All the versions described in this section are in the [wordcount_example.hs](code/wordcount_example.hs) file.
 
 ## Batch version without Conduit
 First of all, we implemented a version of the wordcount script without using Conduit library, to understand the benefits that Conduit provides. 
@@ -172,7 +172,7 @@ In this implementation we merged the two pipelines in a single one, using `peekF
 
 the argument of `peekForeverE` is a monadic action that contains an "inner" conduit, and the steps are as follows:
 * With `takeWhileCE` we send downstream all the elements that match the `isAlphaNum` predicate, i.e. in our case we accumulate the chunked stream into a word variable using the `foldC` function.
-* With `dropCE 1` we discard from the stream the non alphanumeric character (i.e. the spaces, or other punctuation characters).
+* With `dropCE 1` we discard from the stream the non-alphanumeric characters (i.e. the spaces, or other punctuation characters).
 * Finally, we `yield` the previously stored word downstream, and in this case the downstream corresponds to `foldMC insertInHashMap empty` of the "outer" conduit.
 
 We can replace `peekForeverE` with `splitOnUnboundedE`, which is a conduit combinator that splits a stream of arbitrarily-chunked data, based on a predicate on the elements, i.e. exactly what we need in our example.
@@ -196,3 +196,84 @@ wordcountCv3 = do
 insertInHashMap x v = do
     return (insertWith (+) v 1 x)
 ```
+
+
+# Distributed wordcount with network-conduit and async
+Once explored the main features of the Conduit library, we decided to extend the wordcount snippet to more practical use cases, e.g. distributing the logic between a client and a server.
+
+Among the packages that are built on top of Conduit there is [conduit-extra](http://hackage.haskell.org/package/conduit-extra) containing the module **Data.Conduit.Network**, whih provides some functions for writing network servers and clients using conduit. We recommend [this tutorial](https://www.yesodweb.com/blog/2014/03/network-conduit-async) to take a look to its functionalities.
+
+We tried to impelement a distributed version of the wordcount of the previous section, where the client reads from the file and sends a stream of `ByteString` to the server, and the server does the computation to the `HashMap` and replies to the client with the result.
+
+This is the server code:
+
+```haskell
+{-# LANGUAGE OverloadedStrings #-}
+
+import Control.Monad (forever)
+import Data.Functor (void)
+
+import Data.ByteString.Char8 (pack)
+import Data.HashMap.Strict (empty, insertWith, toList)
+import Data.Word8 (toLower, isAlphaNum, _percent)
+
+import Conduit
+import qualified Data.Conduit.Combinators as CC
+import Data.Conduit.Network
+
+server :: IO ()
+server = runTCPServer (serverSettings 4000 "*") $ \appData -> forever $ do
+    hashMap <- runConduit $ appSource appData 
+        .| takeWhileCE (/= _percent)
+        .| omapCE toLower
+        .| CC.splitOnUnboundedE (not . isAlphaNum)
+        .| foldMC insertInHashMap empty
+    runConduit $ yield (pack $ show $ toList hashMap)
+        .| appSink appData
+```
+
+`runTCPServer` takes two parameters. The first is the server settings, which indicates how to listen for incoming connections. The second parameter is an `Application`, which takes some `AppData` and runs some action. Importantly, our app data provides a `Source` to read data from the client, and a `Sink` to write data to the client.
+
+The action repeated indefinitely by the server (thanks to `forever`) is quite trivial given the explanations of the previous section: once the input arrives from the client it calculates the `HashMap` containing the occurrences of the words, and then sends it back to the client. 
+
+Since the type signature of `appSink` is `appSink :: (HasReadWrite ad, MonadIO m) => ad -> ConduitT ByteString o m ()`, it suggests us that we can send to the client only streams of type `ByteString`, therefore we must perform a tricky `toList`, then `show` and then `pack` on our hashmap before sending it to the client. The same constraint applies to `appSource`, which has type signature `appSource :: (HasReadWrite ad, MonadIO m) => ad -> ConduitT i ByteString m ()`.
+
+There is another component of the pipeline worth noting, which is `takeWhileCE (/= _percent)`: we basically stop sending data downstream as soon as the `%` character is found. This is a fundamental step in the pipeline, because a Conduit pipeline is driven by downstream. However, in this case the downstream is foldMC insertInHashMap empty, which continuously accumulates data coming from upstream but doesn't know whether the client has finished sending data. With this `takeWhileCE (/= _percent)`, we can ensure that the server stops processing characters as soon as a `%` character in the `ByteStream` is found. (We will see later that the `%` has appropriately inserted by the client at the end of the input.)
+
+And this is the client code:
+
+```haskell
+{-# LANGUAGE OverloadedStrings #-}
+
+import Control.Concurrent.Async (concurrently)
+import Data.Functor (void)
+import Control.Monad (forever)
+
+import Data.ByteString.Char8 (pack)
+import Data.Word8 (_cr)
+
+import Conduit
+import Data.Conduit.Network
+
+client_file :: IO ()
+client_file = runTCPClient (clientSettings 4000 "localhost") $ \server ->
+    void $ concurrently
+        (forever $ do    
+            getLine
+            runConduitRes $ 
+                do
+                    sourceFile "input.txt"
+                    yield (pack "%")
+                .| appSink server)
+        (runConduit $ appSource server 
+            .| stdoutC)
+```
+
+Like in the server case, we use runTCPClient in a similar way to connect with the server. 
+
+The rationale of the client logic is as follows: we want to read a file and send its content to the client everytime the user press a key, and concurrently receive and print everything is sent back by the server. To tackle with said concurrency in a correct way, we pull in the [async package](https://hackage.haskell.org/package/async), and in particular, the `concurrently` function. This function forks each child action into a separate thread, and blocks until both actions complete. If either thread throws an exception, then the other is terminated and the exception is rethrown. This provides exactly the behavior we need: there is a thread which deals with producing data to be sent to the server, and the other one which deals with consuming data (printing it with `stdoutC`) received from the server.
+
+We can see again in the producing thread the employent of `forever` due to repeat the underlying action indefinetly. In receiving thread this is not strictly necessary, because it waits implicitely for data from the server and therefore never closes.
+
+In the producing thread we can see the `%` character being `yield`ed after the file is read with `sourceFile "input.txt"`, and then everything is sent to the server as a single `ByteString` stream.
+
