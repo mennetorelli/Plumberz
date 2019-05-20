@@ -114,6 +114,9 @@ wordcountC = do
         .| mapC (Data.Text.filter isAlphaNum)
         .| foldMC insertInHashMap empty
     print (toList hashMap)
+
+insertInHashMap x v = do
+    return (insertWith (+) v 1 x)
 ```
 
 This version of the wordcount deals with data in a stram processing style, using Conduit. In particular, the `wordcountC` function contains two monadic actions which run a pipeline each (plus the third monadic action that prints the result).
@@ -132,3 +135,64 @@ functions get a `CE` suffix instead of `C`.
 * At last, the `foldC` accumulates the data from upstream.
 
 Instead of using `runConduit`, the pipeline is run with the helper function `runResourceT`, which is nothing more than `runResourceT . runConduit`. `runResourceT` is contained in the built-in package [resourceT](https://www.stackage.org/package/resourcet) of Conduit and allows to allocate resources and guarantees that they will be cleaned up.
+
+The second monadic action deals with analyzing the `Text` extracted from the first pipeline and counts the words contained into it. More in detail the steps are:
+
+* The `yieldMany (Data.Text.words content)` produces a stream of words starting from the single `Text`.
+* The `mapC (Data.Text.filter isAlphaNum)` filters the non alphanumeric characters. Note that in this case we use `mapC` instead of `ompaCE`, because we are not working anymore with each character contained in the stream.
+* `foldMC insertInHashMap empty` is a monadic strict left fold to accumulate the words in the hashmap.
+
+This first implementation has a drowback, i.e. the instantiation of two different pipelines to compute the task. The next versions of the task show our attempt to achieve the same results employng only one stream of data.
+
+
+## Wordcount Conduit version - single pipeline
+```haskell
+import Data.Char (isAlphaNum, toLower)
+import Data.HashMap.Strict (empty, insertWith, toList)
+
+import Conduit
+
+wordcountCv2 :: IO ()
+wordcountCv2 = do 
+    hashMap <- runConduitRes $ sourceFile "input.txt"
+        .| decodeUtf8C
+        .| omapCE Data.Char.toLower
+        .| peekForeverE (do
+            word <- takeWhileCE isAlphaNum .| foldC
+            dropCE 1
+            yield word)
+        .| foldMC insertInHashMap empty
+    print (toList hashMap)
+
+insertInHashMap x v = do
+    return (insertWith (+) v 1 x)
+```
+
+In this implementation we merged the two pipelines in a single one, using `peekForeverE`. `peekForeverE` is the "chunked" version of the conduit combinator `peekForever`, which continuously runs a conduit as long as there is some input available in a stream. A combinator is an element that when given a conduit, will generate a conduit.
+
+the argument of `peekForeverE` is a monadic action that contains an "inner" conduit, and the steps are as follows:
+* With `takeWhileCE` we send downstream all the elements that match the `isAlphaNum` predicate, i.e. in our case we accumulate the chunked stream into a word variable using the `foldC` function.
+* With `dropCE 1` we discard from the stream the non alphanumeric character (i.e. the spaces, or other punctuation characters).
+* Finally, we `yield` the previously stored word downstream, and in this case the downstream corresponds to `foldMC insertInHashMap empty` of the "outer" conduit.
+
+We can replace `peekForeverE` with `splitOnUnboundedE`, which is a conduit combinator that splits a stream of arbitrarily-chunked data, based on a predicate on the elements, i.e. exactly what we need in our example.
+
+```haskell
+import Data.Char (isAlphaNum, toLower)
+import Data.HashMap.Strict (empty, insertWith, toList)
+
+import Conduit
+import qualified Data.Conduit.Combinators as CC
+
+wordcountCv3 :: IO ()
+wordcountCv3 = do 
+    hashMap <- runConduitRes $ sourceFile "input.txt"
+        .| decodeUtf8C
+        .| omapCE Data.Char.toLower
+        .| CC.splitOnUnboundedE (not . isAlphaNum)
+        .| foldMC insertInHashMap empty
+    print (toList hashMap)
+
+insertInHashMap x v = do
+    return (insertWith (+) v 1 x)
+```
