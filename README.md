@@ -230,6 +230,9 @@ server = runTCPServer (serverSettings 4000 "*") $ \appData -> forever $ do
         .| foldMC insertInHashMap empty
     runConduit $ yield (pack $ show $ toList hashMap)
         .| appSink appData
+
+insertInHashMap x v = do
+    return (insertWith (+) v 1 x)
 ```
 
 `runTCPServer` takes two parameters. The first is the server settings, which indicates how to listen for incoming connections. The second parameter is an `Application`, which takes some `AppData` and runs some action. Importantly, our app data provides a `Source` to read data from the client, and a `Sink` to write data to the client.
@@ -324,6 +327,84 @@ client = runTCPClient (clientSettings 4000 "localhost") $ \server ->
 doneWriting = maybe (pure ()) (`shutdown` ShutdownSend) . appRawSocket
 ```
 
-But with this version of the client it is too hard to push the concept of `forever` in the first thread of the client, because once we have called `shutdown` with `ShutdownSend` on the socket when the file has been sent the first time, it is not possible to send again other data to the server, because an exeption is raised.
+But with this version of the client it is too hard to push the concept of `forever` in the first thread of the client, because once we have called `shutdown` with `ShutdownSend` on the socket when the file has been sent the first time, it is not possible to send again other data to the server, because an exception is raised.
 
-Therefore, we decided that the best option was to introduce the `%` character and stopping the flow of the stream in the server code with `takeWhileCE (/= _percent)`, exploiting the fact that Conduit pipelines are driven by downstream.
+Therefore, we decided that the best option was to include the `%` character at the end of the stream and stopping the flow of the stream in the server with `takeWhileCE (/= _percent)`, exploiting the fact that Conduit pipelines are driven by downstream.
+
+In addition to the version of the client wich reads from a file and sends a `ByteString` stream to the server, we implemented a similar version that does the same thing except reading from user's input.
+
+```haskell
+{-# LANGUAGE OverloadedStrings #-}
+
+import Control.Concurrent.Async (concurrently)
+import Data.Functor (void)
+import Control.Monad (forever)
+
+import Data.ByteString.Char8 (pack)
+import Data.Word8 (_cr)
+
+import Conduit
+import Data.Conduit.Network
+
+client_stdin :: IO ()
+client_stdin = runTCPClient (clientSettings 4000 "localhost") $ \server ->
+    void $ concurrently
+        (forever $ runConduit $ stdinC
+            .| do 
+                takeWhileCE (/= _cr)
+                yield (pack "%")
+            .| appSink server)
+        (runConduit $ appSource server 
+            .| stdoutC)
+```
+
+It is almost identical to the `client_stdin` function, except that we have to take care that `stdinC` doesn't know when the user has finished to type something, therefore we added a `takeWhileCE (/= _cr)` to consider only the first line of input.
+
+
+# Wordcount with timeout
+
+```haskell
+{-# LANGUAGE OverloadedStrings #-}
+
+import Control.Monad (forever)
+import Data.Functor (void)
+
+import Data.ByteString.Char8 (pack)
+import Data.Maybe (fromJust)
+import Data.HashMap.Strict (empty, insertWith, toList, unionWith)
+import Data.Word8 (toLower, isAlphaNum, _percent)
+
+import Conduit
+import qualified Data.Conduit.Combinators as CC
+import Data.Conduit.Network
+
+import Control.Concurrent (threadDelay, takeMVar, putMVar, newMVar, tryTakeMVar)
+import Control.Concurrent.Async
+import System.Timeout
+
+
+server_tw :: Int -> IO ()
+server_tw timeWindow = runTCPServer (serverSettings 4000 "*") $ \appData -> do
+    hashMapMVar <- newMVar empty
+    void $ concurrently
+        (forever $ do 
+            hashMap <- runConduit $ appSource appData
+                .| takeWhileCE (/= _percent)
+                .| omapCE toLower
+                .| CC.splitOnUnboundedE (not . isAlphaNum)
+                .| foldMC insertInHashMap empty
+            queuedHashMap <- tryTakeMVar hashMapMVar
+            putMVar hashMapMVar $ unionWith (+) hashMap (extractHashMap queuedHashMap))
+        (forever $ do 
+            threadDelay timeWindow
+            hashMap <- tryTakeMVar hashMapMVar
+            runConduit $ yield (pack $ show $ toList (extractHashMap hashMap))
+                .| appSink appData)
+
+insertInHashMap x v = do
+    return (insertWith (+) v 1 x)
+
+extractHashMap hashMap = if hashMap == Nothing 
+                            then empty 
+                            else fromJust hashMap
+```
