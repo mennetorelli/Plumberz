@@ -61,4 +61,74 @@ This shows us that:
   and produces the same type as the second component
 * Everything has to run in the same base monad
 
-and a pipeline is run with the runConduit function
+Finally, a pipeline is run with the `runConduit` function.
+
+# Batch wordcount with Conduit
+To understand better how the library works, we implemented a simple wordcount script. The rationale is the following: the script reads from a .txt file, and counts occurrences of all the words contained into it, and finally prints the result to the user. 
+
+All the versions descrived in this paragraph are in the [wordcount_example.hs](https://github.com/mennetorelli/Plumberz/blob/master/code/wordcount_example.hs) file.
+
+## Batch version without Conduit
+First of all, we implemented a version of the wordcount script without using Conduit library, to understand the benefits that Conduit provides. 
+
+```haskell
+import Data.Char (isAlphaNum, toLower)
+import Data.HashMap.Strict (empty, insertWith, toList)
+import Data.Text (pack, toLower, filter, words)
+
+import System.IO
+
+wordcount :: IO ()
+wordcount = withFile "input.txt" ReadMode $ \handle -> do
+    content <- hGetContents handle
+    print $ toList $ foldr
+        (\x v -> insertWith (+) x 1 v) 
+        empty 
+        (fmap Data.Text.toLower 
+            $ fmap (Data.Text.filter isAlphaNum)
+            $ (Data.Text.words . pack) content)
+ ```
+
+ The rationale is as follows: first of all the function reads from the input.txt file by means of withFile function, then extracts the content with `hGetContents`, and finally accumulates all the words contained in a hashmap by means of a `foldr` used with `(\x v -> insertWith (+) x 1 v)` function. The words are obtained from the `String` read from the file using a combination of `fmap`s: first of all the string is converted in a `Text` with `pack` and split in a series of `Text`s with `words` function, then such words are cleaned from eventual non alphanumberical characters, and finally lowercased due to prevent duplicates.
+
+This non-Conduit example works fine, but the main problem compared to any Conduit version is that the memory usage is not constant: if the file size grows, there is the possibility of a stack overflow exception.
+
+
+## Wordcount Conduit version
+We implemented a first version of the above wordcount using Conduit.
+
+```haskell
+import Data.Char (toLower)
+import Data.HashMap.Strict (empty, insertWith, toList)
+import Data.Text (filter, words)
+
+import Conduit
+
+wordcountC :: IO ()
+wordcountC = do
+    content <- runConduitRes $ sourceFile "input.txt"
+        .| decodeUtf8C
+        .| omapCE Data.Char.toLower
+        .| foldC
+    hashMap <- runConduit $ yieldMany (Data.Text.words content)
+        .| mapC (Data.Text.filter isAlphaNum)
+        .| foldMC insertInHashMap empty
+    print (toList hashMap)
+```
+
+This version of the wordcount deals with data in a stram processing style, using Conduit. In particular, the `wordcountC` function contains two monadic actions which run a pipeline each (plus the third monadic action that prints the result).
+
+The first monadic action has the purpose of reading form the input file and accumulate its content in a `Text`. More in detail the steps of the pipeline are:
+
+* the file is read with `sourceFile`, which produces a `ByteString` to be sent downstream. 
+* Then the `ByteString` is converted in a Text with `decodeUtf8C`
+* Each character of the `ByteString` is mapped to the toLower function, using the `omapCE` function. This is an example of the ability of Conduit to work with chunked data. Here the issue is that instead of
+having a stream of `Char` values, we have a stream of `Text` values,
+and our `mapC` function will work on the `Text`s. But our `toUpper`
+function works on the `Char`s inside of the `Text`. This is where the chunked functions in conduit come into play. In
+addition to functions that work directly on the values in a stream, we
+have functions that work on the _elements_ inside those values. These
+functions get a `CE` suffix instead of `C`.
+* At last, the `foldC` accumulates the data from upstream.
+
+Instead of using `runConduit`, the pipeline is run with the helper function `runResourceT`, which is nothing more than `runResourceT . runConduit`. `runResourceT` is contained in the built-in package [resourceT](https://www.stackage.org/package/resourcet) of Conduit and allows to allocate resources and guarantees that they will be cleaned up.
