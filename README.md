@@ -1,5 +1,5 @@
 # Intro
-This project extends the research conducted by Luca Lodi and Philippe Scorsolini for the course of "Principles of Programming Languages" at Politecnico di Milano by prof. Matteo Pradella and with the supervision of Riccardo Tommasini. For more information, visit [their repository on GitHub](https://github.com/plumberz/plumberz.github.io)
+This project extends the research conducted by [Luca Lodi](https://github.com/lulogit) and [Philippe Scorsolini](https://github.com/phisco) for the course of "Principles of Programming Languages" at Politecnico di Milano by prof. Matteo Pradella and with the supervision of [Riccardo Tommasini](https://github.com/riccardotommasini). For more information, visit [their repository on GitHub](https://github.com/plumberz/plumberz.github.io)
 
 While the previous research was focused on examining [Pipes](https://hackage.haskell.org/package/pipes) and [Tubes](https://hackage.haskell.org/package/tubes) libraries for stream processing in Haskell, this research focuses on the [Conduit](https://hackage.haskell.org/package/conduit) library.
 
@@ -362,6 +362,10 @@ It is almost identical to the `client_stdin` function, except that we have to ta
 
 
 # Wordcount with timeout
+This section contains the core of the research and is inspired by [the research conducted by Philippe and Luca](https://github.com/plumberz/plumberz.github.io), in which given a tumbling window of 5 seconds and an input stream of lines of text, returns at every closing of the window the HashMap containing the occurrences of each word.
+
+In this case, we tried to adapt this concept to the client/server architecture described before, so that the server now to computes the occurrences of each word and deals with the time window at the same time.
+
 
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
