@@ -238,7 +238,7 @@ The action repeated indefinitely by the server (thanks to `forever`) is quite tr
 
 Since the type signature of `appSink` is `appSink :: (HasReadWrite ad, MonadIO m) => ad -> ConduitT ByteString o m ()`, it suggests us that we can send to the client only streams of type `ByteString`, therefore we must perform a tricky `toList`, then `show` and then `pack` on our hashmap before sending it to the client. The same constraint applies to `appSource`, which has type signature `appSource :: (HasReadWrite ad, MonadIO m) => ad -> ConduitT i ByteString m ()`.
 
-There is another component of the pipeline worth noting, which is `takeWhileCE (/= _percent)`: we basically stop sending data downstream as soon as the `%` character is found. This is a fundamental step in the pipeline, because a Conduit pipeline is driven by downstream. However, in this case the downstream is foldMC insertInHashMap empty, which continuously accumulates data coming from upstream but doesn't know whether the client has finished sending data. With this `takeWhileCE (/= _percent)`, we can ensure that the server stops processing characters as soon as a `%` character in the `ByteStream` is found. (We will see later that the `%` has appropriately inserted by the client at the end of the input.)
+There is another component of the pipeline worth noting, which is `takeWhileCE (/= _percent)`: we basically stop sending data downstream as soon as the `%` character is found. This is a fundamental step in the pipeline, because a Conduit pipeline is driven by downstream. However, in this case the downstream is `foldMC insertInHashMap empty`, which continuously accumulates data coming from upstream but doesn't know whether the client has finished sending data. With this `takeWhileCE (/= _percent)`, we can ensure that the server stops processing characters as soon as a `%` character in the `ByteStream` is found. (We will see later that the `%` has appropriately inserted by the client at the end of the input.)
 
 And this is the client code:
 
@@ -269,7 +269,7 @@ client_file = runTCPClient (clientSettings 4000 "localhost") $ \server ->
             .| stdoutC)
 ```
 
-Like in the server case, we use runTCPClient in a similar way to connect with the server. 
+Like in the server case, we use `runTCPClient` in a similar way to connect with the server. 
 
 The rationale of the client logic is as follows: we want to read a file and send its content to the client everytime the user press a key, and concurrently receive and print everything is sent back by the server. To tackle with said concurrency in a correct way, we pull in the [async package](https://hackage.haskell.org/package/async), and in particular, the `concurrently` function. This function forks each child action into a separate thread, and blocks until both actions complete. If either thread throws an exception, then the other is terminated and the exception is rethrown. This provides exactly the behavior we need: there is a thread which deals with producing data to be sent to the server, and the other one which deals with consuming data (printing it with `stdoutC`) received from the server.
 
@@ -277,3 +277,53 @@ We can see again in the producing thread the employent of `forever` due to repea
 
 In the producing thread we can see the `%` character being `yield`ed after the file is read with `sourceFile "input.txt"`, and then everything is sent to the server as a single `ByteString` stream.
 
+However, handling the communication between client and server was not so easy: the examples of the [tutorial](https://www.yesodweb.com/blog/2014/03/network-conduit-async) deal with very "linear" pipelines as for the server part, and in particular there is not the concept of accumulation introduced by `foldMC`, which is necessary in our example to build up the hashmap. For instance, if we consider the following exmple, (partially) taken from the tutorial, we have no problems at all.
+
+```haskell
+{-# LANGUAGE OverloadedStrings #-}
+import           Control.Concurrent.Async (concurrently)
+import           Control.Monad (void)
+import           Conduit
+import           Data.Word8 (toUpper)
+
+server :: IO ()
+server = runTCPServer (serverSettings 4000 "*") $ \appData ->
+    appSource appData $$ omapCE toUpper =$ appSink appData
+
+client :: IO ()
+client = runTCPClient (clientSettings 4000 "localhost") $ \server ->
+        void $ concurrently
+            (runConduitRes $ sourceFile "input.txt"
+                .| appSink server)
+            (runConduit $ appSource server 
+                .| stdoutC)
+```
+
+However, introducing the foldMC in the server pipeline, as explained before, results in a deadlock, because the client is waiting for the server to respond before it closes the connection, but the server is unaware that the client is done sending data and is waiting for more.
+
+We tried solving this problem by forcing closing the communication between client and server after the file is read, like the following example:
+
+```haskell
+{-# LANGUAGE OverloadedStrings #-}
+import Control.Concurrent.Async (concurrently)
+import Data.Functor (void)
+import Conduit
+import Data.Conduit.Network
+
+import Data.Streaming.Network (appRawSocket)
+import Network.Socket (shutdown, ShutdownCmd(..))
+
+client :: IO ()
+client = runTCPClient (clientSettings 4000 "localhost") $ \server ->
+    void $ concurrently
+        ((runConduitRes $ sourceFile "input.txt" 
+            .| appSink server) >> doneWriting server)
+        (runConduit $ appSource server 
+            .| stdoutC)
+
+doneWriting = maybe (pure ()) (`shutdown` ShutdownSend) . appRawSocket
+```
+
+But with this version of the client it is too hard to push the concept of `forever` in the first thread of the client, because once we have called `shutdown` with `ShutdownSend` on the socket when the file has been sent the first time, it is not possible to send again other data to the server, because an exeption is raised.
+
+Therefore, we decided that the best option was to introduce the `%` character and stopping the flow of the stream in the server code with `takeWhileCE (/= _percent)`, exploiting the fact that Conduit pipelines are driven by downstream.
