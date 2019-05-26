@@ -4,7 +4,7 @@ This project extends the research conducted by [Luca Lodi](https://github.com/lu
 While the previous research was focused on examining [Pipes](https://hackage.haskell.org/package/pipes) and [Tubes](https://hackage.haskell.org/package/tubes) libraries for stream processing in Haskell, this research focuses on the [Conduit](https://hackage.haskell.org/package/conduit) library.
 
 # Conduit library
-As the tutorial on the homepage of [Conduit's official reopsitory explains](https://github.com/snoyberg/conduit), Conduit is a framework for dealing with streaming data, which standardizes various interfaces for streams of data, and allows a consistent interface for transforming, manipulating, and consuming that data. The main benefits that Conduit provides are constant memory usage and deterministic resource usage.
+As the tutorial on the homepage of [Conduit's official reopsitory](https://github.com/snoyberg/conduit) explains, Conduit is a framework for dealing with streaming data, which standardizes various interfaces for streams of data, and allows a consistent interface for transforming, manipulating, and consuming that data. The main benefits that Conduit provides are constant memory usage and deterministic resource usage.
 
 Since Conduit deals with streams of data, such data flows through a pipeline, which is the main concept of Conduit. Each component of a pipeline can consume data from upstream, and produce data to send downstream. For instance, this is an example of a Conduit pipeline:
 
@@ -362,9 +362,9 @@ It is almost identical to the `client_stdin` function, except that we have to ta
 
 
 # Wordcount with timeout
-This section contains the core of the research and is inspired by [the research conducted by Philippe and Luca](https://github.com/plumberz/plumberz.github.io), in which given a tumbling window of 5 seconds and an input stream of lines of text, returns at every closing of the window the HashMap containing the occurrences of each word.
+This section contains the core of the research and is inspired by [the research conducted by Philippe and Luca](https://github.com/plumberz/plumberz.github.io), in which,  given a tumbling window of 5 seconds and an input stream of lines of text, the wordcount program returns at every closing of the window the HashMap containing the occurrences of each word.
 
-In this case, we tried to adapt this concept to the client/server architecture described before, so that the server now to computes the occurrences of each word and deals with the time window at the same time.
+In this case, we tried to adapt this concept to the client/server architecture described before, so that the server computes the occurrences of each word and deals with the time window at the same time.
 
 
 ```haskell
@@ -412,3 +412,29 @@ extractHashMap hashMap = if hashMap == Nothing
                             then empty 
                             else fromJust hashMap
 ```
+
+
+First of all, to handle the concept of time correctly we have to create a separate thread, to let the time time counting and the building of the hashmap to happen in parallel. 
+To achieve this, we again rely on the `concurrently` of the `Control.Concurrent.Async` package. 
+The rationale is that one thread receives the stream of data from the client and produces the hashmap, and the other one at each window closing consumes the data sending the result to the client.
+
+To achieve the sharing of the hashmap between the two threads, we employed the `Control.Concurrent` module and im particular [MVars](https://hackage.haskell.org/package/base-4.12.0.0/docs/Control-Concurrent-MVar.html). 
+An `MVar` t is mutable location that is either empty or contains a value of type t. 
+It has two fundamental operations: `putMVar` which fills an MVar if it is empty and blocks otherwise, and `takeMVar` which empties an MVar if it is full and blocks otherwise. 
+In our example we instantiated an empty `MVar`s with `newMVar empty` at the beginning, so that we could have a syncronyzed, mutable variable visible by both threads.
+
+The producer thread repeats continuously (with `forever`) three monadic actions.
+The first one is basically the conduit pipeline seen in the examples before: we build a `HashMap` and store it in a variable.
+Then, with `tryTakeMVar hashMapMVar` we are accessing the (initially empty) shared `MVar`, and binding its content to `queuedHashMap`.
+We used `tryTakeMVar` instead of `takeMVar` because the former is basically non-blocking version of the latter, and thus the program does not block if the taken `MVar` is `empty`.
+In the last monadic action we are merging the hashmap stored in the `MVar` with the one just computed in the pipeline, and store back the result into the same `MVar`.
+To do so, we are using the `unionWith` with combining function `+`, because we want to sum the values of the duplicate keys.
+Note that we can't feed the `queuedHashMap` directly into the `unionWith`, because `trytakevar` has type `tryTakeMVar :: MVar a -> IO (Maybe a)`, therefore `queuedHashMap` isn't of type `HashMap`, but `Maybe HashMap`.
+To extract the value from `queuedHashMap` we implemented a simple extractHashMap function, wich returns `empty` in case the input is `Nothing` and a plain `HashMap` if the input is a `Just`, using the `fromJust` function.
+
+The consumer thread every n seconds (inserted by the user) reads the content of the MVar and sends it to the client. 
+More in detail, it repeatedely does the following monadic actions. 
+First of all it waits for a certain amount of time with `threadDelay`. 
+Then, takes the content of the MVar using `tryTakeMVar`. 
+Finally, it sends a stream of Bytestring to the client as in the previous example (note that due to the type signature of `tryTakeMVar`, we have to extract the value from the `Maybe` as seen before).
+If the `HashMap` is `empty`, the client will receive and print an empty stream.
