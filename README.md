@@ -1,8 +1,12 @@
 # Intro
-This project extends the research conducted by [Luca Lodi](https://github.com/lulogit) and [Philippe Scorsolini](https://github.com/phisco) for the course of "Principles of Programming Languages" at Politecnico di Milano by prof. Matteo Pradella and with the supervision of [Riccardo Tommasini](https://github.com/riccardotommasini). 
+This project extends the research conducted by [Luca Lodi](https://github.com/lulogit) and [Philippe Scorsolini](https://github.com/phisco) 
+for the course of "Principles of Programming Languages" at Politecnico di Milano 
+by prof. Matteo Pradella and with the supervision of [Riccardo Tommasini](https://github.com/riccardotommasini). 
 For more information, visit [their repository on GitHub](https://github.com/plumberz/plumberz.github.io)
 
-While the previous research was focused on examining [Pipes](https://hackage.haskell.org/package/pipes) and [Tubes](https://hackage.haskell.org/package/tubes) libraries for stream processing in Haskell, this research focuses on the [Conduit](https://hackage.haskell.org/package/conduit) library.
+While the previous research was focused on examining [Pipes](https://hackage.haskell.org/package/pipes) 
+and [Tubes](https://hackage.haskell.org/package/tubes) libraries for stream processing in Haskell, 
+this research focuses on the [Conduit](https://hackage.haskell.org/package/conduit) library.
 
 # Conduit library
 As the tutorial on the homepage of [Conduit's official reopsitory](https://github.com/snoyberg/conduit) explains, 
@@ -10,8 +14,8 @@ Conduit is a framework for dealing with streaming data, which standardizes vario
 and allows a consistent interface for transforming, manipulating, and consuming that data. 
 The main benefits that Conduit provides are constant memory and deterministic resource usage.
 
-Since Conduit deals with streams of data, such data flows through a pipeline, which is the main concept of Conduit. 
-Each component of a pipeline can consume data from upstream, and produce data to send downstream. 
+Since Conduit deals with streams of data, such data flows through a **pipeline**, which is the main concept of Conduit. 
+Each component of a pipeline can consume data from **upstream**, and produce data to send **downstream**. 
 For instance, this is an example of a Conduit pipeline:
 
 ```haskell
@@ -19,20 +23,21 @@ runConduit $ yieldMany [1..10] .| mapC (*2) .| mapC show .| mapM_C print
 ```
 
 Each component of the pipeline consumes a stream of data from upstream, and produces a stream of data to be sent downstream. 
-For instance, from the perspecive of `mapC show`, `yieldMany [1..10]` is its upstream and `mapM_C print` is its downstream.
+For instance, from the perspecive of `mapC (*2)`, `yieldMany [1..10]` is its upstream and `mapC show` is its downstream.
 
 * `yieldMany` consumes nothing from upstream, and produces a stream of `Int`s
 * `mapC (*2)` consumes a stream of `Int`s, and produces a stream of `Int`s
 * `mapC show` consumes a stream of `Int`s, and produces a stream of `String`s
-* When we combine these two components together, we get something which consumes nothing from upstream, 
- and produces a stream of `String`s.
+* When we combine these three components together, we get something which consumes nothing from upstream, 
+  and produces a stream of `String`s.
 
 To add some type signatures into this:
 
 ```haskell
-yieldMany [1..10] :: ConduitT ()  Int    IO ()
-mapC (*2)         :: ConduitT Int Int    IO ()
-mapC show         :: ConduitT Int String IO ()
+yieldMany [1..10] :: ConduitT ()     Int    IO ()
+mapC (*2)         :: ConduitT Int    Int    IO ()
+mapC show         :: ConduitT Int    String IO ()
+mapM_C print      :: ConduitT String Void   IO ()
 ```
 
 The previous type signatures highlight that there are four type parameters to `ConduitT`:
@@ -41,12 +46,15 @@ The previous type signatures highlight that there are four type parameters to `C
   though it could be any type since we never read anything from upstream. For both `mapC`s, it's `Int`
 * The second indicates the downstream value, or output. For `yieldMany` and the first `mapC`, this is `Int`. 
   Notice how this matches the input of both `mapC`, which is what lets us combine these two. 
-  The output of `mapC` is `String`.
-* The third indicates the base monad, which tells us what kinds of
-  effects we can perform. A `ConduitT` is a monad transformer, so you
-  can use `lift` to perform effects. (We'll learn more about conduit's
-  monadic nature later.) We're using `IO` in our example.
-* The final indicates the result type of the component. This is typically only used for the most downstream component in a pipeline.
+  The output of the second `mapC` is `String`.
+* The third indicates the base monad, which tells us what kinds of effects we can perform. 
+  A `ConduitT` is a monad transformer, so you can use `lift` to perform effects. 
+  In our ecample we are using `IO` as base monad, because we used `print` in the last component.
+* The final indicates the result type of the component. 
+  This is typically only used for the most downstream component in a pipeline.
+  In our example we have `()`, since `mapM_C print` doesn't result in nothing important, 
+  but we could have for instance a pipeline like `yieldMany [1..10] .| mapC (*2) .| sumC`, 
+  where the most downstream component `sumC` gets the sum of all values in the stream, and therefore results in a `Int`.
 
  The components of a pipeline are connected to the `.|` operator, which type is:
  
@@ -54,13 +62,22 @@ The previous type signatures highlight that there are four type parameters to `C
 (.|) :: Monad m => ConduitT a b m () -> ConduitT b c m r -> ConduitT a c m r
 ```
 
-This shows us that:
+This is prefectly in line with our example, and more in detail shows us that:
 * The output from the first component must match the input from the second.
 * We ignore the result type from the first component, and keep the result of the second.
 * The combined component consumes the same type as the first component and produces the same type as the second component.
 * Everything has to run in the same base monad.
 
-Finally, a pipeline is run with the `runConduit` function.
+Finally, a pipeline is run with the `runConduit` function, which has type signature:
+ 
+```haskell
+runConduit :: Monad m => ConduitT () Void m r -> m r
+```
+
+This gives us a better idea of what a pipeline is: just a self contained component, 
+which consumes nothing from upstream, denoted by `()`,  and producing nothing to downstream, denoted by `Void`. 
+(In practice, `()` and `Void` are basically the same thing, but the current Conduit implementation uses both types.)
+When we have such a stand-alone component, we can run it to extract a monadic action that will return a result (the `m r`).
 
 # Batch wordcount with Conduit
 To understand better how the library works, we implemented a simple wordcount script. 
@@ -99,7 +116,7 @@ wordcount = withFile "input.txt" ReadMode $ \handle -> do
  then such words are cleaned from eventual non alphanumerical characters, and finally lowercased due to prevent duplicates.
 
 This non-Conduit example works fine, but the main problem compared to any Conduit version is that the memory usage is not constant: 
-if the file size grows, there is the possibility of a stack overflow exception.
+the more the file size grows, the more there are possibilities of a stack overflow exception.
 
 
 ## Wordcount Conduit version
@@ -155,10 +172,11 @@ and allows to allocate resources and guarantees that they will be cleaned up.
 The second monadic action deals with analyzing the `Text` extracted from the first pipeline and counts the words contained into it. 
 More in detail the steps are:
 
-* The `yieldMany (Data.Text.words content)` produces a stream of words starting from the single `Text`.
-* The `mapC (Data.Text.filter isAlphaNum)` filters the non alphanumeric characters. 
-Note that in this case we use `mapC` instead of `ompaCE`, because we are not working anymore with each character contained in the stream.
-* `foldMC insertInHashMap empty` is a monadic strict left fold to accumulate the words in the hashmap.
+* `yieldMany (Data.Text.words content)` produces a stream of words starting from the single `Text`.
+* `mapC (Data.Text.filter isAlphaNum)` filters the non alphanumeric characters. 
+  Note that in this case we use `mapC` instead of `ompaCE`, 
+  because we are not working anymore with each character contained in the stream.
+* `foldMC insertInHashMap empty` is a monadic strict left fold used to accumulate the words in the hashmap.
 
 This first implementation has a drowback, i.e. the instantiation of two different pipelines to compute the task. 
 The next versions of the task show our attempt to achieve the same results employng only one stream of data.
@@ -196,9 +214,11 @@ the argument of `peekForeverE` is a monadic action that contains an "inner" cond
 * With `takeWhileCE` we send downstream all the elements that match the `isAlphaNum` predicate, 
 i.e. in our case we accumulate the chunked stream into a word variable using the `foldC` function.
 * With `dropCE 1` we discard from the stream the non-alphanumeric characters (i.e. the spaces, or other punctuation characters).
-* Finally, we `yield` the previously stored word downstream, and in this case the downstream corresponds to `foldMC insertInHashMap empty` of the "outer" conduit.
+* Finally, we `yield` the previously stored word downstream, 
+  and in this case the downstream corresponds to `foldMC insertInHashMap empty` of the "outer" conduit.
 
-We can replace `peekForeverE` with `splitOnUnboundedE`, which is a conduit combinator that splits a stream of arbitrarily-chunked data, based on a predicate on the elements, i.e. exactly what we need in our example.
+We can replace `peekForeverE` with `splitOnUnboundedE`, which is a conduit combinator that splits a stream of arbitrarily-chunked data 
+based on a predicate on the elements, i.e. exactly what we need in our example.
 
 ```haskell
 import Data.Char (isAlphaNum, toLower)
@@ -226,7 +246,8 @@ Once explored the main features of the Conduit library, we decided to extend the
 e.g. distributing the logic between a client and a server.
 
 Among the packages that are built on top of Conduit there is [conduit-extra](http://hackage.haskell.org/package/conduit-extra) 
-containing the module **Data.Conduit.Network**, whih provides some functions for writing network servers and clients using conduit. 
+containing the module [Data.Conduit.Network](https://hackage.haskell.org/package/conduit-extra-1.3.1.1/docs/Data-Conduit-Network.html), 
+which provides some functions for writing network servers and clients using Conduit. 
 We recommend [this tutorial](https://www.yesodweb.com/blog/2014/03/network-conduit-async) to take a look to its functionalities.
 
 We tried to impelement a distributed version of the wordcount of the previous section, 
@@ -282,7 +303,8 @@ we basically stop sending data downstream as soon as the `%` character is found.
 This is a fundamental step in the pipeline, because a Conduit pipeline is driven by downstream. 
 However, in this case the downstream is `foldMC insertInHashMap empty`, 
 which continuously accumulates data coming from upstream but doesn't know whether the client has finished sending data. 
-With this `takeWhileCE (/= _percent)`, we can ensure that the server stops processing characters as soon as a `%` character in the `ByteStream` is found 
+With `takeWhileCE (/= _percent)` we can ensure that the server stops processing characters 
+as soon as a `%` character in the `ByteStream` is found 
 (we will see later that the `%` has appropriately inserted by the client at the end of the input.)
 
 And this is the client code:
@@ -333,7 +355,8 @@ In the producing thread we can see the `%` character being `yield`ed after the f
 and then everything is sent to the server as a single `ByteString` stream.
 
 However, handling the communication between client and server was not so easy: 
-the examples of the [tutorial](https://www.yesodweb.com/blog/2014/03/network-conduit-async) deals with very "linear" pipelines as for the server part, 
+the examples of the [tutorial](https://www.yesodweb.com/blog/2014/03/network-conduit-async) 
+deals with very "linear" pipelines as for the server part, 
 and in particular there is not the concept of accumulation introduced by `foldMC`, 
 which is necessary in our example to build up the hashmap. 
 For instance, if we consider the following exmple, (partially) taken from the tutorial, there are no problems at all.
@@ -428,7 +451,8 @@ therefore we added a `takeWhileCE (/= _cr)` to consider only the first line of i
 
 
 # Wordcount with timeout
-This section contains the core of the research and is inspired by [the research conducted by Philippe and Luca](https://github.com/plumberz/plumberz.github.io), in which, 
+This section contains the core of the research and is inspired by 
+[the research conducted by Philippe and Luca](https://github.com/plumberz/plumberz.github.io), in which, 
 given a tumbling window of 5 seconds and an input stream of lines of text, 
 the wordcount program returns at every closing of the window the hashmap containing the occurrences of each word.
 
@@ -489,7 +513,8 @@ To achieve this, we again rely on the `concurrently` of the `Control.Concurrent.
 The rationale is that one thread receives the stream of data from the client and produces the hashmap, 
 and the other one at each window closing consumes the data sending the result to the client.
 
-To achieve the sharing of the hashmap between the two threads, we employed the `Control.Concurrent` module and im particular [MVars](https://hackage.haskell.org/package/base-4.12.0.0/docs/Control-Concurrent-MVar.html). 
+To achieve the sharing of the hashmap between the two threads, we employed the `Control.Concurrent` module 
+and in particular [MVars](https://hackage.haskell.org/package/base-4.12.0.0/docs/Control-Concurrent-MVar.html). 
 An `MVar` t is mutable location that is either empty or contains a value of type t. 
 It has two fundamental operations: `putMVar` which fills an MVar if it is empty and blocks otherwise, 
 and `takeMVar` which empties an MVar if it is full and blocks otherwise. 
