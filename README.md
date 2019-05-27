@@ -179,8 +179,8 @@ More in detail the steps are:
   because we are not working anymore with each character contained in the stream.
 * `foldMC insertInHashMap empty` is a monadic strict left fold used to accumulate the words in the hashmap.
 
-This first implementation, however, has a drowback, i.e. the instantiation of two different pipelines to compute the task. 
-The next versions of the task show our attempt to achieve the same results employng only one stream of data.
+This first implementation, however, has a drowback, i.e. the employment of two different pipelines to compute the task. 
+The next versions of the task show our attempt to achieve the same results using only one stream of data.
 
 
 ## Wordcount Conduit version - single pipeline
@@ -217,6 +217,14 @@ i.e. in our case we accumulate the chunked stream into a word variable using the
 * With `dropCE 1` we discard from the stream the non-alphanumeric characters (i.e. the spaces, or other punctuation characters).
 * Finally, we `yield` the previously stored word downstream, 
   and in this case the downstream corresponds to `foldMC insertInHashMap empty` of the "outer" conduit.
+
+This version shows another powerful feature of Conduit: 
+in addition of being able to combine multiple components together by connecting the output of the upstream 
+to the input of the downstream via the `.|` operator, we can also exploit **monadic composition**:
+we can combine simple conduits in more complex ones using the standard monadic interface (or do-notation).
+In our example, we exploited monadic composition in the "inner" conduit, 
+because the accumulation part with `takeWhileCE isAlphaNum .| foldC`, the `dropCE` and the producing `yield`
+are packed together in a single `do` block.
 
 We can replace `peekForeverE` with `splitOnUnboundedE`, which is a conduit combinator that splits a stream of arbitrarily-chunked data 
 based on a predicate on the elements, i.e. exactly what we need in our example.
