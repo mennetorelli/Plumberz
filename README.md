@@ -6,51 +6,47 @@ While the previous research was focused on examining [Pipes](https://hackage.has
 
 # Conduit library
 As the tutorial on the homepage of [Conduit's official reopsitory](https://github.com/snoyberg/conduit) explains, 
-Conduit is a framework for dealing with streaming data, which standardizes various interfaces for streams of data, and allows a consistent interface for transforming, manipulating, and consuming that data. 
-The main benefits that Conduit provides are constant memory usage and deterministic resource usage.
+Conduit is a framework for dealing with streaming data, which standardizes various interfaces for streams of data, 
+and allows a consistent interface for transforming, manipulating, and consuming that data. 
+The main benefits that Conduit provides are constant memory and deterministic resource usage.
 
 Since Conduit deals with streams of data, such data flows through a pipeline, which is the main concept of Conduit. 
 Each component of a pipeline can consume data from upstream, and produce data to send downstream. 
 For instance, this is an example of a Conduit pipeline:
 
 ```haskell
-runConduit $ yieldMany [1..10] .| mapC show .| mapM_C print
+runConduit $ yieldMany [1..10] .| mapC (*2) .| mapC show .| mapM_C print
 ```
 
 Each component of the pipeline consumes a stream of data from upstream, and produces a stream of data to be sent downstream. 
 For instance, from the perspecive of `mapC show`, `yieldMany [1..10]` is its upstream and `mapM_C print` is its downstream.
 
-* `yieldMany` consumes nothing from upstream, and produces a stream of
-  `Int`s
-* `mapC show` consumes a stream of `Int`s, and produces a stream of
-  `String`s
-* When we combine these two components together, we get something
-  which consumes nothing from upstream, and produces a stream of
-  `String`s.
+* `yieldMany` consumes nothing from upstream, and produces a stream of `Int`s
+* `mapC (*2)` consumes a stream of `Int`s, and produces a stream of `Int`s
+* `mapC show` consumes a stream of `Int`s, and produces a stream of `String`s
+* When we combine these two components together, we get something which consumes nothing from upstream, 
+ and produces a stream of `String`s.
 
 To add some type signatures into this:
 
 ```haskell
 yieldMany [1..10] :: ConduitT ()  Int    IO ()
+mapC (*2)         :: ConduitT Int Int    IO ()
 mapC show         :: ConduitT Int String IO ()
 ```
 
-There are four type parameters to `ConduitT`:
+The previous type signatures highlight that there are four type parameters to `ConduitT`:
 
-* The first indicates the upstream value, or input. For `yieldMany`,
-  we're using `()`, though really it could be any type since we never
-  read anything from upstream. For `mapC`, it's `Int`
-* The second indicates the downstream value, or output. For
-  `yieldMany`, this is `Int`. Notice how this matches the input of
-  `mapC`, which is what lets us combine these two. The output of
-  `mapC` is `String`.
+* The first indicates the upstream value, or input. For `yieldMany`, we're using `()`, 
+  though it could be any type since we never read anything from upstream. For both `mapC`s, it's `Int`
+* The second indicates the downstream value, or output. For `yieldMany` and the first `mapC`, this is `Int`. 
+  Notice how this matches the input of both `mapC`, which is what lets us combine these two. 
+  The output of `mapC` is `String`.
 * The third indicates the base monad, which tells us what kinds of
   effects we can perform. A `ConduitT` is a monad transformer, so you
   can use `lift` to perform effects. (We'll learn more about conduit's
   monadic nature later.) We're using `IO` in our example.
-* The final indicates the result type of the component. This is
-  typically only used for the most downstream component in a
-  pipeline.
+* The final indicates the result type of the component. This is typically only used for the most downstream component in a pipeline.
 
  The components of a pipeline are connected to the `.|` operator, which type is:
  
@@ -59,24 +55,23 @@ There are four type parameters to `ConduitT`:
 ```
 
 This shows us that:
-* The output from the first component must match the input from the
-  second
-* We ignore the result type from the first component, and keep the
-  result of the second
-* The combined component consumes the same type as the first component
-  and produces the same type as the second component
-* Everything has to run in the same base monad
+* The output from the first component must match the input from the second.
+* We ignore the result type from the first component, and keep the result of the second.
+* The combined component consumes the same type as the first component and produces the same type as the second component.
+* Everything has to run in the same base monad.
 
 Finally, a pipeline is run with the `runConduit` function.
 
 # Batch wordcount with Conduit
 To understand better how the library works, we implemented a simple wordcount script. 
-The rationale is the following: the script reads from a .txt file, and counts occurrences of all the words contained into it, and finally prints the result to the user. 
+The rationale is the following: the script reads from a .txt file, and counts occurrences of all the words contained into it, 
+and finally prints the result to the user. 
 
 All the versions described in this section are in the [wordcount_example.hs](code/wordcount_example.hs) file.
 
 ## Batch version without Conduit
-First of all, we implemented a version of the wordcount script without using Conduit library, to understand the benefits that Conduit provides. 
+First of all, we implemented a version of the wordcount script without using Conduit library, 
+to higlight the differences between a non-Conduit and a Conduit version, and understand the benefits that Conduit provides. 
 
 ```haskell
 import Data.Char (isAlphaNum, toLower)
@@ -133,25 +128,29 @@ insertInHashMap x v = do
 ```
 
 This version of the wordcount deals with data in a stram processing style, using Conduit. 
-In particular, the `wordcountC` function contains two monadic actions which run a pipeline each (plus the third monadic action that prints the result).
+In particular, the `wordcountC` function contains two monadic actions which run a pipeline each 
+(plus the third monadic action that prints the result).
 
 The first monadic action has the purpose of reading form the input file and accumulate its content in a `Text`. 
 More in detail the steps of the pipeline are:
 
 * the file is read with `sourceFile`, which produces a `ByteString` to be sent downstream. 
-* Then the `ByteString` is converted in a Text with `decodeUtf8C`
+* Then the `ByteString` is converted in a Text with `decodeUtf8C`.
 * Each character of the `ByteString` is mapped to the toLower function, using the `omapCE` function. 
-This is an example of the ability of Conduit to work with chunked data. Here the issue is that instead of
-having a stream of `Char` values, we have a stream of `Text` values,
-and our `mapC` function will work on the `Text`s. But our `toUpper`
-function works on the `Char`s inside of the `Text`. This is where the chunked functions in conduit come into play. 
-In addition to functions that work directly on the values in a stream, we
-have functions that work on the _elements_ inside those values. These
-functions get a `CE` suffix instead of `C`.
+  This is an example of the ability of Conduit to work with chunked data.
+  Here the issue is that instead of having a stream of `Char` values, we have a stream of `Text` values,
+  and our `mapC` function will work on the `Text`s. 
+  But our `toUpper` function works on the `Char`s inside of the `Text`. 
+  This is where the chunked functions in conduit come into play. 
+  In addition to functions that work directly on the values in a stream, 
+  we have functions that work on the _elements_ inside those values. 
+  These functions get a `CE` suffix instead of `C`.
 * At last, the `foldC` accumulates the data from upstream.
 
-Instead of using `runConduit`, the pipeline is run with the helper function `runResourceT`, which is nothing more than `runResourceT . runConduit`. 
-`runResourceT` is contained in the built-in package [resourceT](https://www.stackage.org/package/resourcet) of Conduit and allows to allocate resources and guarantees that they will be cleaned up.
+Instead of using `runConduit`, the pipeline is run with the helper function `runResourceT`, 
+which is nothing more than `runResourceT . runConduit`. 
+`runResourceT` is contained in the built-in package [resourceT](https://www.stackage.org/package/resourcet) of Conduit 
+and allows to allocate resources and guarantees that they will be cleaned up.
 
 The second monadic action deals with analyzing the `Text` extracted from the first pipeline and counts the words contained into it. 
 More in detail the steps are:
@@ -223,12 +222,16 @@ insertInHashMap x v = do
 
 
 # Distributed wordcount with network-conduit and async
-Once explored the main features of the Conduit library, we decided to extend the wordcount snippet to more practical use cases, e.g. distributing the logic between a client and a server.
+Once explored the main features of the Conduit library, we decided to extend the wordcount snippet to more practical use cases, 
+e.g. distributing the logic between a client and a server.
 
-Among the packages that are built on top of Conduit there is [conduit-extra](http://hackage.haskell.org/package/conduit-extra) containing the module **Data.Conduit.Network**, whih provides some functions for writing network servers and clients using conduit. 
+Among the packages that are built on top of Conduit there is [conduit-extra](http://hackage.haskell.org/package/conduit-extra) 
+containing the module **Data.Conduit.Network**, whih provides some functions for writing network servers and clients using conduit. 
 We recommend [this tutorial](https://www.yesodweb.com/blog/2014/03/network-conduit-async) to take a look to its functionalities.
 
-We tried to impelement a distributed version of the wordcount of the previous section, where the client reads from the file and sends a stream of `ByteString` to the server, and the server does the computation to the `HashMap` and replies to the client with the result.
+We tried to impelement a distributed version of the wordcount of the previous section, 
+where the client reads from the file and sends a stream of `ByteString` to the server, 
+and the server does the computation to the `HashMap` and replies to the client with the result.
 
 This is the server code:
 
@@ -271,7 +274,8 @@ and then sends it back to the client.
 Since the type signature of `appSink` is `appSink :: (HasReadWrite ad, MonadIO m) => ad -> ConduitT ByteString o m ()`, 
 it suggests us that we can send to the client only streams of type `ByteString`, 
 therefore we must perform a tricky `toList`, then `show` and then `pack` on our hashmap before sending it to the client. 
-The same constraint applies to `appSource`, which has type signature `appSource :: (HasReadWrite ad, MonadIO m) => ad -> ConduitT i ByteString m ()`.
+The same constraint applies to `appSource`, which has type signature 
+`appSource :: (HasReadWrite ad, MonadIO m) => ad -> ConduitT i ByteString m ()`.
 
 There is another component of the pipeline worth noting, which is `takeWhileCE (/= _percent)`: 
 we basically stop sending data downstream as soon as the `%` character is found. 
@@ -310,7 +314,7 @@ client_file = runTCPClient (clientSettings 4000 "localhost") $ \server ->
             .| stdoutC)
 ```
 
-Like in the server case, we use `runTCPClient` in a similar way to connect with the server. 
+As in the server case, we use `runTCPClient` in a similar way to connect with the server. 
 
 The rationale of the client logic is as follows: 
 we want to read a file and send its content to the client everytime the user press a key, 
@@ -329,10 +333,10 @@ In the producing thread we can see the `%` character being `yield`ed after the f
 and then everything is sent to the server as a single `ByteString` stream.
 
 However, handling the communication between client and server was not so easy: 
-the examples of the [tutorial](https://www.yesodweb.com/blog/2014/03/network-conduit-async) deal with very "linear" pipelines as for the server part, 
+the examples of the [tutorial](https://www.yesodweb.com/blog/2014/03/network-conduit-async) deals with very "linear" pipelines as for the server part, 
 and in particular there is not the concept of accumulation introduced by `foldMC`, 
 which is necessary in our example to build up the hashmap. 
-For instance, if we consider the following exmple, (partially) taken from the tutorial, we have no problems at all.
+For instance, if we consider the following exmple, (partially) taken from the tutorial, there are no problems at all.
 
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
@@ -354,12 +358,12 @@ client = runTCPClient (clientSettings 4000 "localhost") $ \server ->
                 .| stdoutC)
 ```
 
-However, introducing the foldMC in the server pipeline, as explained before, results in a deadlock, 
+However, introducing the `foldMC` in the server pipeline, as explained before, results in a deadlock, 
 because the client is waiting for the server to respond before it closes the connection, 
-but the server is unaware that the client is done sending data and is waiting for more.
+but the server is unaware that the client has done sending data and is waiting for more.
 
-We tried solving this problem by forcing closing the communication between client and server after the file is read, 
-like the following example:
+We tried solving this problem by forcing the communication between client and server to shutdown after the file is read, 
+like in the following example:
 
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
@@ -382,14 +386,16 @@ client = runTCPClient (clientSettings 4000 "localhost") $ \server ->
 doneWriting = maybe (pure ()) (`shutdown` ShutdownSend) . appRawSocket
 ```
 
-But with this version of the client it is too hard to push the concept of `forever` in the first thread of the client, because once we have called `shutdown` with `ShutdownSend` on the socket when the file has been sent the first time, it is not possible to send again other data to the server, because an exception is raised.
+But with this version of the client it is too hard to push the concept of `forever` in the first thread of the client, 
+because once we have called `shutdown` with `ShutdownSend` on the socket when the file has been sent the first time, 
+it is not possible to send again other data to the server, because an exception is raised.
 
 Therefore, we decided that the best option was to include the `%` character at the end of the stream 
 and stopping the flow of the stream in the server with `takeWhileCE (/= _percent)`, 
 exploiting the fact that Conduit pipelines are driven by downstream.
 
 In addition to the version of the client wich reads from a file and sends a `ByteString` stream to the server, 
-we implemented a similar version that does the same thing except reading from user's input.
+we implemented a similar version that does the same thing, but reas from user's input instead of from a file.
 
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
@@ -416,16 +422,17 @@ client_stdin = runTCPClient (clientSettings 4000 "localhost") $ \server ->
             .| stdoutC)
 ```
 
-It is almost identical to the `client_stdin` function, except that we have to take care that `stdinC` doesn't know when the user has finished to type something, 
+It is almost identical to the `client_file` function shown before, 
+except that we have to take care that `stdinC` doesn't know when the user has finished to type something, 
 therefore we added a `takeWhileCE (/= _cr)` to consider only the first line of input.
 
 
 # Wordcount with timeout
-This section contains the core of the research and is inspired by [the research conducted by Philippe and Luca](https://github.com/plumberz/plumberz.github.io), 
-in which, given a tumbling window of 5 seconds and an input stream of lines of text, 
-the wordcount program returns at every closing of the window the HashMap containing the occurrences of each word.
+This section contains the core of the research and is inspired by [the research conducted by Philippe and Luca](https://github.com/plumberz/plumberz.github.io), in which, 
+given a tumbling window of 5 seconds and an input stream of lines of text, 
+the wordcount program returns at every closing of the window the hashmap containing the occurrences of each word.
 
-In this case, we tried to adapt this concept to the client/server architecture described before, 
+In this case, we tried to adapt this concept of time window to the client/server architecture described before, 
 so that the server computes the occurrences of each word and deals with the time window at the same time.
 
 
@@ -476,7 +483,7 @@ extractHashMap hashMap = if hashMap == Nothing
 ```
 
 
-First of all, to handle the concept of time correctly we have to create a separate thread, 
+First of all, to handle the concept of time correctly, we have to create a separate thread, 
 to let the time time counting and the building of the hashmap to happen in parallel. 
 To achieve this, we again rely on the `concurrently` of the `Control.Concurrent.Async` package. 
 The rationale is that one thread receives the stream of data from the client and produces the hashmap, 
@@ -490,17 +497,23 @@ In our example we instantiated an empty `MVar`s with `newMVar empty` at the begi
 so that we could have a syncronyzed, mutable variable visible by both threads.
 
 The producer thread repeats continuously (with `forever`) three monadic actions.
-The first one is basically the conduit pipeline seen in the examples before: we build a `HashMap` and store it in a variable.
-Then, with `tryTakeMVar hashMapMVar` we are accessing the (initially empty) shared `MVar`, and binding its content to `queuedHashMap`.
-We used `tryTakeMVar` instead of `takeMVar` because the former is basically non-blocking version of the latter, and thus the program does not block if the taken `MVar` is `empty`.
-In the last monadic action we are merging the hashmap stored in the `MVar` with the one just computed in the pipeline, and store back the result into the same `MVar`.
-To do so, we are using the `unionWith` with combining function `+`, because we want to sum the values of the duplicate keys.
-Note that we can't feed the `queuedHashMap` directly into the `unionWith`, because `trytakevar` has type `tryTakeMVar :: MVar a -> IO (Maybe a)`, therefore `queuedHashMap` isn't of type `HashMap`, but `Maybe HashMap`.
-To extract the value from `queuedHashMap` we implemented a simple extractHashMap function, wich returns `empty` in case the input is `Nothing` and a plain `HashMap` if the input is a `Just`, using the `fromJust` function.
+* The first one is basically the conduit pipeline seen in the examples before: we build a `HashMap` and store it in a variable.
+* Then, with `tryTakeMVar hashMapMVar` we are accessing the (initially empty) shared `MVar`, and binding its content to `queuedHashMap`.
+  We used `tryTakeMVar` instead of `takeMVar` because the former is basically non-blocking version of the latter, 
+  and thus the program does not block if the taken `MVar` is `empty`.
+* In the last monadic action we are merging the hashmap stored in the `MVar` with the one just computed in the pipeline, 
+  and store back the result into the same `MVar`.
+  To do so, we are using the `unionWith` with combining function `+`, because we want to sum the values of the duplicate keys.
+  Note that we can't feed the `queuedHashMap` directly into the `unionWith`, 
+  because `trytakevar` has type `tryTakeMVar :: MVar a -> IO (Maybe a)`, 
+  therefore `queuedHashMap` isn't of type `HashMap`, but `Maybe HashMap`.
+  To extract the value from `queuedHashMap` we implemented a simple `extractHashMap` function, 
+  wich returns `empty` in case the input is `Nothing` and a plain `HashMap` if the input is a `Just`, using the `fromJust` function.
 
 The consumer thread every n seconds (inserted by the user) reads the content of the MVar and sends it to the client. 
-More in detail, it repeatedely does the following monadic actions. 
-First of all it waits for a certain amount of time with `threadDelay`. 
-Then, takes the content of the MVar using `tryTakeMVar`. 
-Finally, it sends a stream of Bytestring to the client as in the previous example (note that due to the type signature of `tryTakeMVar`, we have to extract the value from the `Maybe` as seen before).
-If the `HashMap` is `empty`, the client will receive and print an empty stream.
+More in detail, it repeatedely does the following monadic actions: 
+* First of all, the thread waits for a certain amount of time with `threadDelay`. 
+* Then, takes the content of the MVar using `tryTakeMVar`. 
+* Finally, it sends a stream of Bytestring to the client as in the previous example 
+  (note that due to the type signature of `tryTakeMVar` we have to extract the value from the `Maybe` as seen before).
+* Thus, if the `HashMap` is `empty`, the client will receive and print an empty stream.
