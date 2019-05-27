@@ -48,13 +48,13 @@ The previous type signatures highlight that there are four type parameters to `C
   Notice how this matches the input of both `mapC`, which is what lets us combine these two. 
   The output of the second `mapC` is `String`.
 * The third indicates the base monad, which tells us what kinds of effects we can perform. 
-  A `ConduitT` is a monad transformer, so you can use `lift` to perform effects. 
-  In our ecample we are using `IO` as base monad, because we used `print` in the last component.
+  A `ConduitT` is a **monad transformer**, so it's possible to use `lift` to perform effects. 
+  In our example we are using `IO` as base monad, because we used `print` in the last component.
 * The final indicates the result type of the component. 
   This is typically only used for the most downstream component in a pipeline.
-  In our example we have `()`, since `mapM_C print` doesn't result in nothing important, 
+  In our example we have `()`, since `mapM_C print` doesn't have a result value, 
   but we could have for instance a pipeline like `yieldMany [1..10] .| mapC (*2) .| sumC`, 
-  where the most downstream component `sumC` gets the sum of all values in the stream, and therefore results in a `Int`.
+  where the most downstream component `sumC` gets the sum of all values in the stream, and therefore results in a `Int` value.
 
  The components of a pipeline are connected to the `.|` operator, which type is:
  
@@ -76,7 +76,7 @@ runConduit :: Monad m => ConduitT () Void m r -> m r
 
 This gives us a better idea of what a pipeline is: just a self contained component, 
 which consumes nothing from upstream, denoted by `()`,  and producing nothing to downstream, denoted by `Void`. 
-(In practice, `()` and `Void` are basically the same thing, but the current Conduit implementation uses both types.)
+(In practice, `()` and `Void` basically indicate the same thing)
 When we have such a stand-alone component, we can run it to extract a monadic action that will return a result (the `m r`).
 
 # Batch wordcount with Conduit
@@ -154,7 +154,7 @@ More in detail the steps of the pipeline are:
 * the file is read with `sourceFile`, which produces a `ByteString` to be sent downstream. 
 * Then the `ByteString` is converted in a Text with `decodeUtf8C`.
 * Each character of the `ByteString` is mapped to the toLower function, using the `omapCE` function. 
-  This is an example of the ability of Conduit to work with chunked data.
+  This is an example of the ability of Conduit to work with **chunked data**.
   Here the issue is that instead of having a stream of `Char` values, we have a stream of `Text` values,
   and our `mapC` function will work on the `Text`s. 
   But our `toUpper` function works on the `Char`s inside of the `Text`. 
@@ -178,7 +178,7 @@ More in detail the steps are:
   because we are not working anymore with each character contained in the stream.
 * `foldMC insertInHashMap empty` is a monadic strict left fold used to accumulate the words in the hashmap.
 
-This first implementation has a drowback, i.e. the instantiation of two different pipelines to compute the task. 
+This first implementation, however, has a drowback, i.e. the instantiation of two different pipelines to compute the task. 
 The next versions of the task show our attempt to achieve the same results employng only one stream of data.
 
 
@@ -253,6 +253,8 @@ We recommend [this tutorial](https://www.yesodweb.com/blog/2014/03/network-condu
 We tried to impelement a distributed version of the wordcount of the previous section, 
 where the client reads from the file and sends a stream of `ByteString` to the server, 
 and the server does the computation to the `HashMap` and replies to the client with the result.
+
+Both the server and the client code are contained respectively in the [server.hs](code/server.hs) and [client.hs](code/client.hs) files.
 
 This is the server code:
 
@@ -359,7 +361,7 @@ the examples of the [tutorial](https://www.yesodweb.com/blog/2014/03/network-con
 deals with very "linear" pipelines as for the server part, 
 and in particular there is not the concept of accumulation introduced by `foldMC`, 
 which is necessary in our example to build up the hashmap. 
-For instance, if we consider the following exmple, (partially) taken from the tutorial, there are no problems at all.
+For instance, if we consider the following example, (partially) taken from the tutorial, there are no problems at all.
 
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
@@ -459,6 +461,7 @@ the wordcount program returns at every closing of the window the hashmap contain
 In this case, we tried to adapt this concept of time window to the client/server architecture described before, 
 so that the server computes the occurrences of each word and deals with the time window at the same time.
 
+Also the code of server with timeout is contained in the [server.hs](code/server.hs) file.
 
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
