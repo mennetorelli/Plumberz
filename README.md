@@ -9,7 +9,7 @@ and [Tubes](https://hackage.haskell.org/package/tubes) libraries for stream proc
 this research focuses on the [Conduit](https://hackage.haskell.org/package/conduit) library.
 
 # Conduit library
-As the tutorial on the homepage of [Conduit's official reopsitory](https://github.com/snoyberg/conduit) explains, 
+As the tutorial on the homepage of [Conduit's official repository](https://github.com/snoyberg/conduit) explains, 
 Conduit is a framework for dealing with streaming data, which standardizes various interfaces for streams of data, 
 and allows a consistent interface for transforming, manipulating, and consuming that data. 
 The main benefits that Conduit provides are constant memory and deterministic resource usage.
@@ -221,7 +221,7 @@ i.e. in our case we accumulate the chunked stream into a word variable using the
 This version shows another powerful feature of Conduit: 
 in addition of being able to combine multiple components together by connecting the output of the upstream 
 to the input of the downstream via the `.|` operator, we can also exploit **monadic composition**:
-we can combine simple conduits in more complex ones using the standard monadic interface (or do-notation).
+we can combine simple conduits in more complex ones using the standard monadic interface (or `do`-notation).
 In our example, we exploited monadic composition in the "inner" conduit, 
 because the accumulation part with `takeWhileCE isAlphaNum .| foldC`, the `dropCE` and the producing `yield`
 are packed together in a single `do` block.
