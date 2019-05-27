@@ -25,11 +25,12 @@ runConduit $ yieldMany [1..10] .| mapC (*2) .| mapC show .| mapM_C print
 Each component of the pipeline consumes a stream of data from upstream, and produces a stream of data to be sent downstream. 
 For instance, from the perspecive of `mapC (*2)`, `yieldMany [1..10]` is its upstream and `mapC show` is its downstream.
 
-* `yieldMany` consumes nothing from upstream, and produces a stream of `Int`s
-* `mapC (*2)` consumes a stream of `Int`s, and produces a stream of `Int`s
-* `mapC show` consumes a stream of `Int`s, and produces a stream of `String`s
-* When we combine these three components together, we get something which consumes nothing from upstream, 
-  and produces a stream of `String`s.
+* `yieldMany` consumes nothing from upstream, and produces a stream of `Int`s.
+* `mapC (*2)` consumes a stream of `Int`s, and produces a stream of `Int`s.
+* `mapC show` consumes a stream of `Int`s, and produces a stream of `String`s.
+* `mapM_C print` consumes a stream of `String`s, and produces nothing to downstream.
+* If we combine for insance the first three components together, 
+  we get something which consumes nothing from upstream, and produces a stream of `String`s.
 
 To add some type signatures into this:
 
