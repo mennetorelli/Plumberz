@@ -14,6 +14,8 @@ Conduit is a framework for dealing with streaming data, which standardizes vario
 and allows a consistent interface for transforming, manipulating, and consuming that data. 
 The main benefits that Conduit provides are constant memory and deterministic resource usage.
 
+## Practical introduction
+
 Since Conduit deals with streams of data, such data flows through a **pipeline**, which is the main concept of Conduit. 
 Each component of a pipeline can consume data from **upstream**, and produce data to send **downstream**. 
 For instance, this is an example of a Conduit pipeline:
@@ -29,7 +31,7 @@ For instance, from the perspecive of `mapC (*2)`, `yieldMany [1..10]` is its ups
 * `mapC (*2)` consumes a stream of `Int`s, and produces a stream of `Int`s.
 * `mapC show` consumes a stream of `Int`s, and produces a stream of `String`s.
 * `mapM_C print` consumes a stream of `String`s, and produces nothing to downstream.
-* If we combine for insance the first three components together, 
+* If we combine, for instance, the first three components together, 
   we get something which consumes nothing from upstream, and produces a stream of `String`s.
 
 To add some type signatures into this:
@@ -46,7 +48,7 @@ The previous type signatures highlight that there are four type parameters to `C
 * The first indicates the upstream value, or input. For `yieldMany`, we're using `()`, 
   though it could be any type since we never read anything from upstream. For both `mapC`s, it's `Int`
 * The second indicates the downstream value, or output. For `yieldMany` and the first `mapC`, this is `Int`. 
-  Notice how this matches the input of both `mapC`, which is what lets us combine these two. 
+  Notice how this matches the input of both `mapC`s, which is what lets us combine these two. 
   The output of the second `mapC` is `String`.
 * The third indicates the base monad, which tells us what kinds of effects we can perform. 
   A `ConduitT` is a **monad transformer**, so it's possible to use `lift` to perform effects. 
@@ -63,7 +65,7 @@ The previous type signatures highlight that there are four type parameters to `C
 (.|) :: Monad m => ConduitT a b m () -> ConduitT b c m r -> ConduitT a c m r
 ```
 
-This is prefectly in line with our example, and more in detail shows us that:
+This is prefectly in line with our example, and shows us that:
 * The output from the first component must match the input from the second.
 * We ignore the result type from the first component, and keep the result of the second.
 * The combined component consumes the same type as the first component and produces the same type as the second component.
@@ -79,6 +81,81 @@ This gives us a better idea of what a pipeline is: just a self contained compone
 which consumes nothing from upstream, denoted by `()`,  and producing nothing to downstream, denoted by `Void`. 
 (In practice, `()` and `Void` basically indicate the same thing)
 When we have such a stand-alone component, we can run it to extract a monadic action that will return a result (the `m r`).
+
+## Conduit.Internal module overview
+As shown in the practical introduction, the core datatype of the conduit package is `ConduitT`, which is defined as:
+
+```haskell
+newtype ConduitT i o m r 
+```
+
+This type represents a general component of a pipeline which can consume a stream of input values i, 
+produce a stream of output values o, perform actions in the m monad, and produce a final result r. 
+
+However, there is one underlying datatype of top of which `ConduitT` newtype is built, 
+as we can see from its definition:
+
+```haskell
+newtype ConduitT i o m r = ConduitT {
+    unConduitT :: forall b. (r -> Pipe i i o () m b) -> Pipe i i o () m b
+}
+```
+
+`Pipe` is the underlying datatype for all the types in Conduit package. It is defined as follows:
+
+```haskell
+data Pipe l i o u m r 
+    = HaveOutput (Pipe l i o u m r) o
+    | NeedInput (i -> Pipe l i o u m r) (u -> Pipe l i o u m r)
+    | Done r
+    | PipeM (m (Pipe l i o u m r))
+    | Leftover (Pipe l i o u m r) l
+```
+
+`Pipe` has six type parameters:
+* l is the type of values that may be left over from this `Pipe`. 
+  A `Pipe` with no leftovers would use `Void` here, and one with leftovers would use the same type as the i parameter. 
+  Leftovers are automatically provided to the next `Pipe` in the monadic chain.
+* i is the type of values for this `Pipe`'s input stream.
+* o is the type of values for this `Pipe`'s output stream.
+* u is the result type from the upstream `Pipe`.
+* m is the underlying monad.
+* r is the result type.
+
+And it has five constructors:
+
+* `HaveOutput`: Provide new output to be sent downstream. This constructor has two fields: the next Pipe to be used and the output value.
+* `NeedInput`: Request more input from upstream. The first field takes a new input value and provides a new Pipe. 
+  The second takes an upstream result value, which indicates that upstream is producing no more results.
+* `Done`: Processing with this Pipe is complete, providing the final result.
+* `PipeM`: Require running of a monadic action to get the next Pipe.
+* `Leftover`: Return leftover input, which should be provided to future operations.
+
+A Pipe is instance of many typeclasses, from the most standard like `Functor`, `Applicative` and `Monad` to more complex ones.
+There is the instance of `MonadIO`, which provides `liftIO`.
+
+```haskell
+Monad m => Functor (Pipe l i o u m)
+Monad m => Applicative (Pipe l i o u m)
+Monad m => Monad (Pipe l i o u m)
+MonadIO m => MonadIO (Pipe l i o u m)
+MonadTrans (Pipe l i o u)
+Monad m => Monoid (Pipe l i o u m ())
+MonadResource m => MonadResource (Pipe l i o u m)
+```
+
+Also the `ConduitT` newtype is instance of the same typeclasses of `Pipe`.
+
+```haskell
+Functor (ConduitT i o m)
+Applicative (ConduitT i o m)
+Monad (ConduitT i o m)
+MonadIO m => MonadIO (ConduitT i o m)
+MonadTrans (ConduitT i o)
+Monad m => Monoid (ConduitT i o m ())
+MonadResource m => MonadResource (ConduitT i o m)
+```
+
 
 # Batch wordcount with Conduit
 To understand better how the library works, we implemented a simple wordcount script. 
