@@ -28,7 +28,7 @@ Each component of the pipeline consumes a stream of data from upstream, and prod
 For instance, from the perspecive of `mapC (*2)`, `yieldMany [1..10]` is its upstream and `mapC show` is its downstream.
 
 * `yieldMany` consumes nothing from upstream, and produces a stream of `Int`s.
-* `mapC (*2)` consumes a stream of `Int`s, and produces a stream of `Int`s.
+* `mapC (*2)` consumes a stream of `Int`s, and produces another stream of `Int`s.
 * `mapC show` consumes a stream of `Int`s, and produces a stream of `String`s.
 * `mapM_C print` consumes a stream of `String`s, and produces nothing to downstream.
 * If we combine, for instance, the first three components together, 
@@ -82,7 +82,7 @@ which consumes nothing from upstream, denoted by `()`,  and producing nothing to
 (In practice, `()` and `Void` basically indicate the same thing)
 When we have such a stand-alone component, we can run it to extract a monadic action that will return a result (the `m r`).
 
-## Conduit.Internal module overview
+## Conduit package overview
 
 ### Pipe datatype
 `Pipe` is the underlying datatype for all the types in Conduit package. It is defined as follows:
@@ -216,7 +216,7 @@ mapC f =
  ```
 
 We can see that `mapC` takes as parameter the function `f :: (i -> o)`, and has a result value of `ConduitT i o m ()`.
-it indefinitelly performs the folowing action: waits for a data with `await`, then if the data is a `Nothing` it returns `()`,
+it performs indefinitely the folowing action: waits for a data with `await`, then if the data is a `Nothing` it returns `()`,
 otherwise if it is a `Just` it applies the function to its value and yields the result.
 
 Another important primitive is `leftover`, 
@@ -249,9 +249,9 @@ would be discarded, instead we want to send it to the next pipe.
 
 
 ### ZipSink, ZipSource and ZipConduit newtypes
-Even if not used in our project, there are some newtypes that are worth mentioning, which are:
+There are some newtypes that are worth mentioning, even if we didn't employed them in our project.
 
-`ZipSink` is a newtype wrapper which provides an different `Applicative` instance than the standard one for `ConduitT`. 
+`ZipSink` is a newtype wrapper which provides a different `Applicative` instance than the standard one for `ConduitT`. 
 Instead of sequencing the consumption of a stream, it allows two components to consume in parallel. 
 
 ```haskell
@@ -300,7 +300,7 @@ except from `Effect` which is peculiar of Pipes, but can be easily conceptualize
 and in the same way in Conduit with `ConduitT () () m r`.
 
 For what concerns the primitives, each library implements both yield and await, 
-which are similar both in sintax and in semantics.
+which are similar both in syntax and in semantics.
 
 The composition of pipelines in the three libraries are performed with the following composition operators:
 
@@ -311,8 +311,14 @@ The composition of pipelines in the three libraries are performed with the follo
 Pipes allows to use the `>->` both between Proxies and between Producers/Pipes/Consumers thanks to Rank-N ghc extension.
 On the contrary, in Tubes the `><` operator can compose only matching Tubes, 
 and it is necessary to obtain the corresponding `Tube` from a `Source`/`Channel`/`Sink` 
-using `sample`/`tune`/`pour` before applying the composition.
-In this aspect, Conduit's operator `.|` is probably the most flexible of the 
+using `sample`/`tune`/`pour` operations before applying the composition.
+Conduit probably provides the most flexible pipeline composition among the three libraries,
+thanks to the unique datatype `ConduitT` and  `.|` operator.
+
+For what concerns the various operations contained in Prelude, each library reimplement them in terms of the specific datatypes. 
+Specifically, Pipes defines these functions in `Pipes.Prelude`, Tubes inside `Tubes.Util`, Conduit in `Data.Conduit`.
+For example, if we consider again the map function, in Pipes we can find , in Tubes , and in Conduit mapC, 
+as we have seen in the various examples of this discussion.
 
 
 # Batch wordcount with Conduit
