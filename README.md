@@ -83,23 +83,6 @@ which consumes nothing from upstream, denoted by `()`,  and producing nothing to
 When we have such a stand-alone component, we can run it to extract a monadic action that will return a result (the `m r`).
 
 ## Conduit.Internal module overview
-As shown in the practical introduction, the core datatype of the conduit package is `ConduitT`, which is defined as:
-
-```haskell
-newtype ConduitT i o m r 
-```
-
-This type represents a general component of a pipeline which can consume a stream of input values i, 
-produce a stream of output values o, perform actions in the m monad, and produce a final result r. 
-
-However, there is one underlying datatype of top of which `ConduitT` newtype is built, 
-as we can see from its definition:
-
-```haskell
-newtype ConduitT i o m r = ConduitT {
-    unConduitT :: forall b. (r -> Pipe i i o () m b) -> Pipe i i o () m b
-}
-```
 
 `Pipe` is the underlying datatype for all the types in Conduit package. It is defined as follows:
 
@@ -144,6 +127,18 @@ Monad m => Monoid (Pipe l i o u m ())
 MonadResource m => MonadResource (Pipe l i o u m)
 ```
 
+As shown in the practical introduction, the core datatype of the conduit package is `ConduitT`, 
+which is built of top of `Pipes` and defined as:
+
+```haskell
+newtype ConduitT i o m r = ConduitT {
+    unConduitT :: forall b. (r -> Pipe i i o () m b) -> Pipe i i o () m b
+}
+```
+
+This type represents a general component of a pipeline which can consume a stream of input values i, 
+produce a stream of output values o, perform actions in the m monad, and produce a final result r. 
+
 Also the `ConduitT` newtype is instance of the same typeclasses of `Pipe`.
 
 ```haskell
@@ -155,6 +150,105 @@ MonadTrans (ConduitT i o)
 Monad m => Monoid (ConduitT i o m ())
 MonadResource m => MonadResource (ConduitT i o m)
 ```
+
+Now, let's introduce the two main primitives on which many of the functions contained in the library are built:
+
+```haskell
+yield :: Monad m => o -> ConduitT i o m ()
+await :: Monad m => ConduitT i o m (Maybe i)
+```
+
+yield sends a value downstream, while await waits for a single input value from upstream.
+
+There are also the versions based on Pipe instead of the newtype ConduitT, but they aren't much different.
+
+```haskell
+yield :: Monad m => o -> Pipe l i o u m ()
+await :: Pipe l i o u m (Maybe i) 
+```
+
+Similar to these two functions there are other functions like yieldMany, which is basically yield for more values,
+and awaitForever which waits for input forever, calling the given inner ConduitT for each piece of new input.
+
+Most of the functions available in the modules of Conduit package are based on these two primitives.
+For example, in the practical introduction we have seen mapC, which is implemented as follows:
+
+```haskell
+mapC :: Monad m => (i -> o) -> ConduitT i o m ()
+mapC f =
+    loop
+  where
+    loop = do
+        mx <- await
+        case mx of
+            Nothing -> return ()
+            Just x -> do
+                yield (f x)
+                loop
+ ```
+
+We can see that mapC takes as parameter the function f :: (i -> o), and has a result value of ConduitT i o m ().
+it indefinitelly performs the folowing action: waits for a data with await, then if the data is a Nothing it returns (),
+otherwise if it is a Just it applies the function to its value and yields the result.
+
+Another important primitive is leftover, 
+which a single piece of leftover input to be consumed by the next pipe in the current monadic binding.
+
+```haskell
+leftover :: i -> ConduitT i o m ()
+```
+
+an example in which it is used is the takeWhileC function, which streams all values downstream that match the given predicate.
+
+```haskell
+takeWhileC :: Monad m => (i -> Bool) -> ConduitT i i m ()
+takeWhileC f =
+    loop
+  where
+    loop = do
+        mx <- await
+        case mx of
+            Nothing -> return ()
+            Just x
+                | f x -> do
+                    yield x
+                    loop
+                | otherwise -> leftover x
+```
+
+In takeWhileC leftover it is necessary because otherwise the first element that doesn't match the predicate 
+would be discarded, instead we want to send it to the next pipe.
+
+
+Even if not used in our project, there are some newtypes that are worth mentioning, which are:
+
+ZipSink is a newtype wrapper which provides an different Applicative instance than the standard one for ConduitT. 
+Instead of sequencing the consumption of a stream, it allows two components to consume in parallel. 
+
+```haskell
+newtype ZipSink i m r = ZipSink {
+    getZipSink :: Sink i m r
+}
+```
+
+ZipSource in the dual of ZipSink, because it allows us to produce in parallel.
+
+```haskell
+newtype ZipSource m o = ZipSource {
+    getZipSource :: Source m o
+}
+```
+
+```haskell
+newtype ZipConduit i o m r = ZipConduit {
+    getZipConduit :: ConduitT i o m r
+}
+```
+
+It allows you to combine a bunch of transformers in such a way that:
+* Drain all of the ZipConduits of all yielded values, until they are all awaiting
+* Grab the next value from upstream, and feed it to all of the ZipConduits
+* Repeat
 
 
 # Batch wordcount with Conduit
