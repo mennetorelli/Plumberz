@@ -88,6 +88,7 @@ When we have such a stand-alone component, we can run it to extract a monadic ac
 `Pipe` is the underlying datatype for all the types in Conduit package. It is defined as follows:
 
 ```haskell
+-- Defined in Data.Conduit.Internal
 data Pipe l i o u m r 
     = HaveOutput (Pipe l i o u m r) o
     | NeedInput (i -> Pipe l i o u m r) (u -> Pipe l i o u m r)
@@ -108,17 +109,20 @@ data Pipe l i o u m r
 
 And it has five constructors:
 
-* `HaveOutput`: Provide new output to be sent downstream. This constructor has two fields: the next Pipe to be used and the output value.
-* `NeedInput`: Request more input from upstream. The first field takes a new input value and provides a new Pipe. 
+* `HaveOutput`: Provide new output to be sent downstream. 
+  This constructor has two fields: the next `Pipe` to be used and the output value.
+* `NeedInput`: Request more input from upstream. The first field takes a new input value and provides a new `Pipe`. 
   The second takes an upstream result value, which indicates that upstream is producing no more results.
-* `Done`: Processing with this Pipe is complete, providing the final result.
-* `PipeM`: Require running of a monadic action to get the next Pipe.
+* `Done`: Processing with this `Pipe` is complete, providing the final result.
+* `PipeM`: Require running of a monadic action to get the next `Pipe`.
 * `Leftover`: Return leftover input, which should be provided to future operations.
 
-A Pipe is instance of many typeclasses, from the most standard like `Functor`, `Applicative` and `Monad` to more complex ones.
+A `Pipe` is instance of many typeclasses, from the most standard like `Functor`, `Applicative` and `Monad` to more complex ones.
 There is the instance of `MonadIO`, which provides `liftIO`.
+Here we report some of the typeclasses of which `Pipe` is instance:
 
 ```haskell
+-- Defined in Data.Conduit.Internal
 Monad m => Functor (Pipe l i o u m)
 Monad m => Applicative (Pipe l i o u m)
 Monad m => Monad (Pipe l i o u m)
@@ -134,6 +138,7 @@ As shown in the practical introduction, the core datatype of the conduit package
 which is built of top of `Pipes` and defined as:
 
 ```haskell
+-- Defined in Data.Conduit
 newtype ConduitT i o m r = ConduitT {
     unConduitT :: forall b. (r -> Pipe i i o () m b) -> Pipe i i o () m b
 }
@@ -142,6 +147,7 @@ newtype ConduitT i o m r = ConduitT {
 Also the `ConduitT` newtype is instance of the same typeclasses of `Pipe`.
 
 ```haskell
+-- Defined in Data.Conduit
 Functor (ConduitT i o m)
 Applicative (ConduitT i o m)
 Monad (ConduitT i o m)
@@ -158,6 +164,7 @@ In addition to the `ConduitT` generic newtype type, in the `Data.Conduit` module
 built on top of it which further specify the nature of the pipe component we are considering.
 
 ```haskell
+-- Defined in Data.Conduit
 type Source     m o   =           ConduitT () o    m ()
 type Sink     i m   r =           ConduitT i  Void m r
 type Conduit  i m o   =           ConduitT i  o    m ()
@@ -173,7 +180,7 @@ are more specific than the generic `ConduitT` component.
 i.e. a `Producer` can be used either as a `ConduitT` or a `Source`, 
 and a `Consumer` can be used either as a `ConduitT` or a `Sink`.
 Those type synonyms however have been deprecated due to simplify the package, 
-and a user can employ the `ConduitT` type for each one of these cases.
+and users can employ the `ConduitT` type for each one of these cases.
 
 
 ### Primitives
@@ -181,16 +188,18 @@ Now, let's introduce the main primitives on which many of the functions containe
 Arguably the most important two primitives are:
 
 ```haskell
+-- Defined in Data.Conduit
 yield :: Monad m => o -> ConduitT i o m ()
 await :: Monad m => ConduitT i o m (Maybe i)
 ```
 
 `yield` sends a value downstream, while `await` waits for a single input value from upstream.
 
-In the `Data.Conduit.Internal` module there are also the versions based on `Pipe `instead of the newtype `ConduitT`,
-but the concept is almost the same
+In the `Data.Conduit.Internal` module there are also the versions based on `Pipe` instead of the newtype `ConduitT`,
+but the concept is almost the same.
 
 ```haskell
+-- Defined in Data.Conduit.Internal
 yield :: Monad m => o -> Pipe l i o u m ()
 await :: Pipe l i o u m (Maybe i) 
 ```
@@ -202,6 +211,7 @@ Most of the functions available in the modules of Conduit package are based on t
 For example, in the practical introduction we have seen `mapC`, which is implemented as follows:
 
 ```haskell
+-- Defined in Data.Conduit.Internal
 mapC :: Monad m => (i -> o) -> ConduitT i o m ()
 mapC f =
     loop
@@ -215,20 +225,23 @@ mapC f =
                 loop
  ```
 
-We can see that `mapC` takes as parameter the function `f :: (i -> o)`, and has a result value of `ConduitT i o m ()`.
-it performs indefinitely the folowing action: waits for a data with `await`, then if the data is a `Nothing` it returns `()`,
+We can see that `mapC` takes as parameter the function of type `(i -> o)`, and has a result value of `ConduitT i o m ()`.
+It performs indefinitely the folowing action: waits for a data with `await`, then if the data is a `Nothing` it returns `()`,
 otherwise if it is a `Just` it applies the function to its value and yields the result.
+Many of the Prelude functions are reimplemented in Conduit to match the `ConduitT` datatype.
 
 Another important primitive is `leftover`, 
 which a single piece of leftover input to be consumed by the next pipe in the current monadic binding.
 
 ```haskell
+-- Defined in Data.Conduit
 leftover :: i -> ConduitT i o m ()
 ```
 
 An example in which it is used is the `takeWhileC` function, which streams all values downstream that match the given predicate.
 
 ```haskell
+-- Defined in Conduit
 takeWhileC :: Monad m => (i -> Bool) -> ConduitT i i m ()
 takeWhileC f =
     loop
@@ -255,6 +268,7 @@ There are some newtypes that are worth mentioning, even if we didn't employed th
 Instead of sequencing the consumption of a stream, it allows two components to consume in parallel. 
 
 ```haskell
+-- Defined in Data.Conduit
 newtype ZipSink i m r = ZipSink {
     getZipSink :: Sink i m r
 }
@@ -263,6 +277,7 @@ newtype ZipSink i m r = ZipSink {
 `ZipSource` in the dual of `ZipSink`, because it allows us to produce in parallel.
 
 ```haskell
+-- Defined in Data.Conduit
 newtype ZipSource m o = ZipSource {
     getZipSource :: Source m o
 }
@@ -274,6 +289,7 @@ newtype ZipSource m o = ZipSource {
 * Repeat
 
 ```haskell
+-- Defined in Data.Conduit
 newtype ZipConduit i o m r = ZipConduit {
     getZipConduit :: ConduitT i o m r
 }
@@ -281,9 +297,9 @@ newtype ZipConduit i o m r = ZipConduit {
 
 
 ### Tubes, Pipes and Conduit comparison
-[The research conducted by Philippe and Luca](https://github.com/plumberz/plumberz.github.io)
-already conatins a comparison between Pipes and Tubes libraries, and highlights the many similarities between the two,
-from datatypes to the semantic of the primitives. Also Conduit shows many similarities with the two libraries. 
+[Philippe and Luca's previous research](https://github.com/plumberz/plumberz.github.io)
+already conatins a comparison between Pipes and Tubes libraries, which highlights the many similarities between the two,
+from datatypes to the semantic of the primitives. Also Conduit has many similarities with the two libraries. 
 
 Let's start with the datatype provided:
 
@@ -301,6 +317,7 @@ and in the same way in Conduit with `ConduitT () () m r`.
 
 For what concerns the primitives, each library implements both yield and await, 
 which are similar both in syntax and in semantics.
+`leftover`, instead, is a peculiar primitive of Conduit, since neither Pipes nor Tubes have the concept of leftover values.
 
 The composition of pipelines in the three libraries are performed with the following composition operators:
 
