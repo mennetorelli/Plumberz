@@ -42,7 +42,7 @@ wordcountCv2 = do
         .| omapCE Data.Char.toLower
         .| peekForeverE (do
             word <- takeWhileCE isAlphaNum .| foldC
-            dropCE 1
+            dropWhileCE (not . isAlphaNum)
             yield word)
         .| foldMC insertInHashMap empty
     print (toList hashMap)
