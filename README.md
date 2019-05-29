@@ -174,7 +174,7 @@ i.e. a `Producer` can be used either as a `ConduitT` or a `Source`,
 and a `Consumer` can be used either as a `ConduitT` or a `Sink`.
 Those type synonyms however have been deprecated due to simplify the package, 
 and a user can employ the `ConduitT` type for each one of these cases.
- 
+
 
 ### Primitives
 Now, let's introduce the main primitives on which many of the functions contained in the library are built.
@@ -278,6 +278,41 @@ newtype ZipConduit i o m r = ZipConduit {
     getZipConduit :: ConduitT i o m r
 }
 ```
+
+
+### Tubes, Pipes and Conduit comparison
+[The research conducted by Philippe and Luca](https://github.com/plumberz/plumberz.github.io)
+already conatins a comparison between Pipes and Tubes libraries, and highlights the many similarities between the two,
+from datatypes to the semantic of the primitives. Also Conduit shows many similarities with the two libraries. 
+
+Let's start with the datatype provided:
+
+| *Pipes*  	    | *Tubes*       | *Conduit*                               
+|---------------|---------------|--------------------------------------
+| `Proxy`    	| `Tube` 	    | `Pipe`
+| `Producer` 	| `Source`      | `ConduitT` (or deprecated `Source`)
+| `Pipe`     	| `Channel`     | `ConduitT` (or deprecated `Conduit`)
+| `Consumer` 	| `Sink`        | `ConduitT` (or deprecated `Sink`)
+| `Effect`   	| /             | /
+
+We can see that each of the datatypes of a library have their counterpart in the other ones, 
+except from `Effect` which is peculiar of Pipes, but can be easily conceptualized in Tubes with `Tube () () m r` 
+and in the same way in Conduit with `ConduitT () () m r`.
+
+For what concerns the primitives, each library implements both yield and await, 
+which are similar both in sintax and in semantics.
+
+The composition of pipelines in the three libraries are performed with the following composition operators:
+
+| *Pipes*  	    | *Tubes*       | *Conduit*                               
+|---------------|---------------|---------------
+| `>->`    	    | `><` 	        | `.|`
+
+Pipes allows to use the `>->` both between Proxies and between Producers/Pipes/Consumers thanks to Rank-N ghc extension.
+On the contrary, in Tubes the `><` operator can compose only matching Tubes, 
+and it is necessary to obtain the corresponding `Tube` from a `Source`/`Channel`/`Sink` 
+using `sample`/`tune`/`pour` before applying the composition.
+In this aspect, Conduit's operator `.|` is probably the most flexible of the 
 
 
 # Batch wordcount with Conduit
