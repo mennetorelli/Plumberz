@@ -23,9 +23,9 @@ For instance, this is an example of a Conduit pipeline:
 ```haskell
 runConduit $ yieldMany [1..10] .| mapC (*2) .| mapC show .| mapM_C print
 ```
-
-Each component of the pipeline consumes a stream of data from upstream, and produces a stream of data to be sent downstream. 
+ 
 For instance, from the perspecive of `mapC (*2)`, `yieldMany [1..10]` is its upstream and `mapC show` is its downstream.
+The following explains more in detail how the stream is manipulated at each step of the pipeline:
 
 * `yieldMany` consumes nothing from upstream, and produces a stream of `Int`s.
 * `mapC (*2)` consumes a stream of `Int`s, and produces another stream of `Int`s.
@@ -34,7 +34,7 @@ For instance, from the perspecive of `mapC (*2)`, `yieldMany [1..10]` is its ups
 * If we combine, for instance, the first three components together, 
   we get something which consumes nothing from upstream, and produces a stream of `String`s.
 
-To add some type signatures into this:
+To add some type signatures into them:
 
 ```haskell
 yieldMany [1..10] :: ConduitT ()     Int    IO ()
@@ -135,7 +135,13 @@ And it has five constructors:
 * `Leftover`: Return leftover input, which should be provided to future operations.
 
 A `Pipe` is instance of many typeclasses, from the most standard like `Functor`, `Applicative` and `Monad` to more complex ones.
-There is the instance of `MonadIO`, which provides `liftIO`.
+There is the instance of `MonadIO`, which provides `liftIO`. 
+Most importantly, there is the instance of `MonadTrans`, which allows to perform generic `lift` operations.
+Worth noting is also the instance of `MonadResource` which is in turng defined in the Conduit module itself, 
+and is a Monad allowing for safe resource allocation. This provides the `liftResourceT`, which unwraps the `ResourceT` transformer. 
+`ResourceT` transformers are used for instance were file reading/writing comes into play 
+(this is the case of our next examples in the folowing secions).
+
 Here we report some of the typeclasses of which `Pipe` is instance:
 
 ```haskell
@@ -143,16 +149,16 @@ Here we report some of the typeclasses of which `Pipe` is instance:
 Monad m => Functor (Pipe l i o u m)
 Monad m => Applicative (Pipe l i o u m)
 Monad m => Monad (Pipe l i o u m)
+Monad m => Monoid (Pipe l i o u m ())
 MonadIO m => MonadIO (Pipe l i o u m)
 MonadTrans (Pipe l i o u)
-Monad m => Monoid (Pipe l i o u m ())
 MonadResource m => MonadResource (Pipe l i o u m)
 ```
 
 
 ### From Pipe to ConduitT newtype
 As shown in the practical introduction, the core datatype of the conduit package is `ConduitT`, 
-which is built of top of `Pipes` and defined as:
+which is built of top of `Pipe` and defined as:
 
 ```haskell
 -- Defined in Data.Conduit
@@ -168,13 +174,14 @@ Also the `ConduitT` newtype is instance of the same typeclasses of `Pipe`.
 Functor (ConduitT i o m)
 Applicative (ConduitT i o m)
 Monad (ConduitT i o m)
+Monad m => Monoid (ConduitT i o m ())
 MonadIO m => MonadIO (ConduitT i o m)
 MonadTrans (ConduitT i o)
-Monad m => Monoid (ConduitT i o m ())
 MonadResource m => MonadResource (ConduitT i o m)
 ```
 
-So, `ConduitT`'s type represents a general component of a pipeline which can consume a stream of input values `i`, 
+As we have seen in the introduction from a more practical perpecive, 
+`ConduitT`'s type represents a general component of a pipeline which can consume a stream of input values `i`, 
 produce a stream of output values `o`, perform actions in the `m` monad, and produce a final result `r`. 
 
 In addition to the `ConduitT` generic newtype type, in the `Data.Conduit` module there are also some other deprecated type synonyms 
@@ -472,7 +479,7 @@ wordcountCv2 = do
         .| omapCE Data.Char.toLower
         .| peekForeverE (do
             word <- takeWhileCE isAlphaNum .| foldC
-            dropCE 1
+            dropWhileCE (not . isAlphaNum)
             yield word)
         .| foldMC insertInHashMap empty
     print (toList hashMap)
