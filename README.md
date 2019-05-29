@@ -51,8 +51,8 @@ The previous type signatures highlight that there are four type parameters to `C
   Notice how this matches the input of both `mapC`s, which is what lets us combine these two. 
   The output of the second `mapC` is `String`.
 * The third indicates the base monad, which tells us what kinds of effects we can perform. 
+  In our example we are using `IO` as base monad, because we used `print` in the most downstream component.
   A `ConduitT` is a **monad transformer**, so it's possible to use `lift` to perform effects. 
-  In our example we are using `IO` as base monad, because we used `print` in the last component.
 * The final indicates the result type of the component. 
   This is typically only used for the most downstream component in a pipeline.
   In our example we have `()`, since `mapM_C print` doesn't have a result value, 
@@ -78,9 +78,26 @@ runConduit :: Monad m => ConduitT () Void m r -> m r
 ```
 
 This gives us a better idea of what a pipeline is: just a self contained component, 
-which consumes nothing from upstream, denoted by `()`,  and producing nothing to downstream, denoted by `Void`. 
-(In practice, `()` and `Void` basically indicate the same thing)
-When we have such a stand-alone component, we can run it to extract a monadic action that will return a result (the `m r`).
+which consumes nothing from upstream, denoted by `()`, and producing nothing to downstream, denoted by `Void`. 
+(In practice, `()` and `Void` indicate the same thing.)
+We can then run such standalone component with `runConduit` to extract a monadic action that will return a result (the `m r`).
+
+In addition of runConduit there is also the function runConduitPure, which is used when the pipeline has no side effects.
+The pipeline shown before has side effects because we printed each value in the last component, 
+but we could have a situation like this, in which we accumulate all the results in a list with `sinkList` 
+without printing nothing (and therefore without having monadic values):
+
+```haskell
+runConduitPure $ yieldMany [1..10] .| mapC (*2) .| sinkList
+```
+
+A pure pipeline is basically a pipeline with `Identity` as the base monad, 
+and therefore `runConduitPure` has the following type signature:
+
+```haskell
+runConduitPure :: ConduitT () Void Identity r -> r
+```
+
 
 ## Conduit package overview
 
@@ -204,14 +221,14 @@ yield :: Monad m => o -> Pipe l i o u m ()
 await :: Pipe l i o u m (Maybe i) 
 ```
 
-Related to these two primitives there are other functions like `yieldMany`, which is basically `yield` for more values,
+Based on these two primitives there are other similar functions like `yieldMany`, which is basically `yield` for more values,
 and `awaitForever` which waits for input forever, calling the given inner `ConduitT` for each piece of new input.
 
 Most of the functions available in the modules of Conduit package are based on these two primitives.
 For example, in the practical introduction we have seen `mapC`, which is implemented as follows:
 
 ```haskell
--- Defined in Data.Conduit.Internal
+-- Defined in Conduit
 mapC :: Monad m => (i -> o) -> ConduitT i o m ()
 mapC f =
     loop
