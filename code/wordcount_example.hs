@@ -55,9 +55,7 @@ wordcountCv3 = do
     hashMap <- runConduitRes $ sourceFile "input.txt"
         .| decodeUtf8C
         .| omapCE Data.Char.toLower
-        .| do 
-            CC.splitOnUnboundedE (not . isAlphaNum)
-            dropWhileC (/= "")
+        .| CC.splitOnUnboundedE (not . isAlphaNum)
         .| foldMC insertInHashMap empty
     print (toList hashMap)
 
