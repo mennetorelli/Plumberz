@@ -8,6 +8,7 @@ import Data.ByteString.Char8 (pack)
 import Data.Word8 (_cr)
 
 import Conduit
+import qualified Data.Conduit.Combinators as CC
 import Data.Conduit.Network
 
 import Data.Streaming.Network (appRawSocket)
@@ -34,10 +35,8 @@ client_filev2 = runTCPClient (clientSettings 4000 "localhost") $ \server ->
         (forever $ do    
             getLine
             runConduitRes $ sourceFile "input.txt"
-                .| peekForeverE (do
-                    word <- takeWhileCE (/= _cr) .| foldC
-                    dropCE 1
-                    yield word >> yield (pack "%"))
+                .| CC.splitOnUnboundedE (== _cr)
+                .| intersperseC (pack "%")
                 .| appSink server)
         (runConduit $ appSource server 
             .| stdoutC)
