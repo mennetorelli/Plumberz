@@ -59,13 +59,17 @@ client_stdin = runTCPClient (clientSettings 4000 "localhost") $ \server ->
 main :: IO ()
 main = do
     putStrLn "1: input from file"
-    putStrLn "2: input from stdin"
+    putStrLn "2: input from (large) file"
+    putStrLn "3: input from stdin"
     choice <- getLine
     case choice of
         "1" -> do
             putStrLn "Press any key to send the file"
             client_file
         "2" -> do
+            putStrLn "Press any key to send the file"
+            client_filev2
+        "3" -> do
             putStrLn "Type something and press enter"
             client_stdin
         _ -> do
