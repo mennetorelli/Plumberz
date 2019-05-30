@@ -22,7 +22,9 @@ server = runTCPServer (serverSettings 4000 "*") $ \appData -> forever $ do
     hashMap <- runConduit $ appSource appData 
         .| takeWhileCE (/= _percent)
         .| omapCE toLower
-        .| CC.splitOnUnboundedE (not . isAlphaNum)
+        .| do 
+            CC.splitOnUnboundedE (not . isAlphaNum)
+            dropWhileC (/= "")
         .| foldMC insertInHashMap empty
     runConduit $ yield (pack $ show $ toList hashMap)
         .| appSink appData
@@ -36,7 +38,9 @@ server_tw timeWindow = runTCPServer (serverSettings 4000 "*") $ \appData -> do
             hashMap <- runConduit $ appSource appData
                 .| takeWhileCE (/= _percent)
                 .| omapCE toLower
-                .| CC.splitOnUnboundedE (not . isAlphaNum)
+                .| do 
+                    CC.splitOnUnboundedE (not . isAlphaNum)
+                    dropWhileC (/= "")
                 .| foldMC insertInHashMap empty
             queuedHashMap <- tryTakeMVar hashMapMVar
             putMVar hashMapMVar $ unionWith (+) hashMap (extractHashMap queuedHashMap))
