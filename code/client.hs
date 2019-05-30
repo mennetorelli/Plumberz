@@ -28,6 +28,21 @@ client_file = runTCPClient (clientSettings 4000 "localhost") $ \server ->
             .| stdoutC)
 
 
+client_filev2 :: IO ()
+client_filev2 = runTCPClient (clientSettings 4000 "localhost") $ \server ->
+    void $ concurrently
+        (forever $ do    
+            getLine
+            runConduitRes $ sourceFile "input.txt"
+                .| peekForeverE (do
+                    word <- takeWhileCE (/= _cr) .| foldC
+                    dropCE 1
+                    yield word >> yield (pack "%"))
+                .| appSink server)
+        (runConduit $ appSource server 
+            .| stdoutC)
+
+
 client_stdin :: IO ()
 client_stdin = runTCPClient (clientSettings 4000 "localhost") $ \server ->
     void $ concurrently
