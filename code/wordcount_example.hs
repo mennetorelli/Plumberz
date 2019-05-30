@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 import Control.Monad
 
 import Data.Char (isAlphaNum, toLower)
@@ -53,7 +55,9 @@ wordcountCv3 = do
     hashMap <- runConduitRes $ sourceFile "input.txt"
         .| decodeUtf8C
         .| omapCE Data.Char.toLower
-        .| CC.splitOnUnboundedE (not . isAlphaNum)
+        .| do 
+            CC.splitOnUnboundedE (not . isAlphaNum)
+            dropWhileC (/= "")
         .| foldMC insertInHashMap empty
     print (toList hashMap)
 
@@ -76,21 +80,26 @@ main = do
             wordcount
             endTime <- getCurrentTime
             print $ diffUTCTime endTime startTime
+            main
         "2" -> do
             startTime <- getCurrentTime
             wordcountC
             endTime <- getCurrentTime
             print $ diffUTCTime endTime startTime
+            main
         "3" -> do
             startTime <- getCurrentTime
             wordcountCv2
             endTime <- getCurrentTime
             print $ diffUTCTime endTime startTime
+            main
         "4" -> do
             startTime <- getCurrentTime
             wordcountCv3
             endTime <- getCurrentTime
             print $ diffUTCTime endTime startTime
+            main
+        "quit" -> return ()
         _ -> do
             putStrLn "Invalid command"
             main
