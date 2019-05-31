@@ -532,6 +532,32 @@ insertInHashMap x v = do
 ```
 
 
+## Performance evaluation
+We decided to conduct a simple performance evaluation to see the differences between the preliminar version without Conduit 
+and the two single-pipeline Conduit versions. Our parameter was the waiting time.
+
+The evaluation was conducted as follows: we executed each wordcount version 20 times, with different file inputs.
+Specifically, we used a file with about 100 words (plus punctuation), 
+which was repeated respectively 2500, 5000, 7500, 10000, 12500 and 15000 times.
+We took the time at the beginning and at the end of each wordcount execution with `Data.Time.Clock`, 
+and then we saved the elapsed time for each of the executions.
+The results are available in [this file](performance/data.xlsx).
+Such results have been analysed and visualized with [The Jupyter Notebook](https://jupyter.org/) 
+using the [Pandas](https://pandas.pydata.org/) lybrary for Python.
+
+A dedicated script [Wordcount_performance.hs](code/Wordcount_performance.hs) 
+has been built to automatize the collection of data of the various executions.
+
+This boxplot shows that the Conduit versions have a better performance than the basic one, 
+and in particular `wordcountCv3` has the best performance among all.
+
+![png](images/output_1_1.png)
+
+Then, we aggregated each set of 20 evaluations by means of their median, and plotted again with a bar diagram.
+
+![png](images/output_3_1.png)
+
+
 # Distributed wordcount with network-conduit and async
 Once explored the main features of the Conduit library, we decided to extend the wordcount snippet to more practical use cases, 
 e.g. distributing the logic between a client and a server.
@@ -843,7 +869,9 @@ the process seems not to work properly. This is due to the fact that the client 
 and then appends the `%` character at the end. Therefore, we implemented a `client_filev2` version 
 which reads one line at a time and then appends to every line the `%` and send them to the server, one at a time.
 In this way the communication is guaranteed to be more fluid even in the case of large files 
-which requires much time to be decoded. This is achieved with the `splitOnUnboundedE` combinator again.
+which requires much time to be decoded. This is achieved with the `splitOnUnboundedE` combinator again, 
+this time used to split the chunked stream into lines (splits when it founds `_cr`, i.e. newline),
+and with `intersperseC` which inserts the `%` character between each yielded line.
 
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
