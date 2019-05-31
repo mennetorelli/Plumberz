@@ -1,15 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import Control.Monad
-
-import Data.Char (isAlphaNum, toLower)
-import Data.HashMap.Strict (empty, insertWith, toList)
-import Data.Text (pack, toLower, filter, words)
-
 import System.IO
-
-import Conduit
-import qualified Data.Conduit.Combinators as CC
 
 import Data.Time.Clock
 
@@ -24,7 +15,7 @@ main = do
     evaluations <- getLine
     putStrLn "File dimension: "
     fileSizes <- getLine
-    evaluate (read evaluations) [2500, 5000, 7500, 10000]
+    evaluate (read evaluations) [2500, 5000, 7500, 10000, 12500, 15000]
 
 evaluate :: Integer -> [Integer] -> IO ()
 evaluate 0 _ = return ()
