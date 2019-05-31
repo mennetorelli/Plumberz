@@ -367,7 +367,7 @@ To understand better how the library works, we implemented a simple wordcount sc
 The rationale is the following: the script reads from a .txt file, and counts occurrences of all the words contained into it, 
 and finally prints the result to the user. 
 
-All the versions described in this section are in the [wordcount_example.hs](code/wordcount_example.hs) file.
+All the versions described in this section are in the [Wordcount_batch.hs](code/Wordcount_batch.hs) file.
 
 ## Batch version without Conduit
 First of all, we implemented a version of the wordcount script without using Conduit library, 
@@ -836,3 +836,38 @@ More in detail, it repeatedely does the following monadic actions:
 * Finally, it sends a stream of Bytestring to the client as in the previous example 
   (note that due to the type signature of `tryTakeMVar` we have to extract the value from the `Maybe` as seen before).
 * Thus, if the `HashMap` is `empty`, the client will receive and print an empty stream.
+
+However, with the described implementation some problem can arise in the with `client_file` function if large files are used.
+In particular, if the client employs more time to read the file than the time window defined in the server, 
+the process seems not to work properly. This is due to the fact that the client reads the file all at once, 
+and then appends the `%` character at the end. Therefore, we implemented a `client_filev2` version 
+which reads one line at a time and then appends to every line the `%` and send them to the server, one at a time.
+In this way the communication is guaranteed to be more fluid even in the case of large files 
+which requires much time to be decoded. This is achieved with the `splitOnUnboundedE` combinator again.
+
+```haskell
+{-# LANGUAGE OverloadedStrings #-}
+
+import Control.Concurrent.Async (concurrently)
+import Data.Functor (void)
+import Control.Monad (forever)
+
+import Data.ByteString.Char8 (pack)
+import Data.Word8 (_cr)
+
+import Conduit
+import qualified Data.Conduit.Combinators as CC
+import Data.Conduit.Network
+
+client_filev2 :: IO ()
+client_filev2 = runTCPClient (clientSettings 4000 "localhost") $ \server ->
+    void $ concurrently
+        (forever $ do    
+            getLine
+            runConduitRes $ sourceFile "input.txt"
+                .| CC.splitOnUnboundedE (== _cr)
+                .| intersperseC (pack "%")
+                .| appSink server)
+        (runConduit $ appSource server 
+            .| stdoutC)
+```
