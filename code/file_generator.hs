@@ -1,12 +1,9 @@
 module File_generator (
-    clearFile,
     generateFile,
     content) where
 
 import System.IO
 
-
-clearFile = writeFile "input.txt" ""
 
 generateFile :: (Num a, Eq a) => a -> IO ()
 generateFile 0 = return ()
@@ -16,7 +13,7 @@ generateFile n = do
 
 main :: IO ()
 main = do
-    clearFile
+    writeFile "input.txt" ""
     putStrLn "Number of times:"
     times <- getLine
     generateFile $ read times
