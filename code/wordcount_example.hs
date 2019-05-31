@@ -1,5 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+module Wordcount_example (
+    wordcount,
+    wordcountC,
+    wordcountCv2,
+    wordcountCv3,
+    insertInHashMap) where
+
 import Control.Monad
 
 import Data.Char (isAlphaNum, toLower)
@@ -73,30 +80,33 @@ main = do
     putStrLn "4: wordcount with Conduit v3"
     choice <- getLine
     case choice of
-        "1" -> do 
+        "1" -> forever $ do
             startTime <- getCurrentTime
             wordcount
             endTime <- getCurrentTime
             print $ diffUTCTime endTime startTime
-            main
+            appendFile "output.txt" (show (diffUTCTime endTime startTime) ++ "\n")
+            -- main
         "2" -> do
             startTime <- getCurrentTime
             wordcountC
             endTime <- getCurrentTime
             print $ diffUTCTime endTime startTime
             main
-        "3" -> do
+        "3" -> forever $ do
             startTime <- getCurrentTime
             wordcountCv2
             endTime <- getCurrentTime
             print $ diffUTCTime endTime startTime
-            main
-        "4" -> do
+            appendFile "output.txt" (show (diffUTCTime endTime startTime) ++ "\n")
+            -- main
+        "4" -> forever $ do
             startTime <- getCurrentTime
             wordcountCv3
             endTime <- getCurrentTime
             print $ diffUTCTime endTime startTime
-            main
+            appendFile "output.txt" (show (diffUTCTime endTime startTime) ++ "\n")
+            -- main
         "quit" -> return ()
         _ -> do
             putStrLn "Invalid command"
