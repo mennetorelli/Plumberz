@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Wordcount_example (
+module Wordcount_batch (
     wordcount,
     wordcountC,
     wordcountCv2,

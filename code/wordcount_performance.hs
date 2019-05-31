@@ -4,7 +4,7 @@ import System.IO
 
 import Data.Time.Clock
 
-import Wordcount_example
+import Wordcount_batch
 import File_generator
 
 
