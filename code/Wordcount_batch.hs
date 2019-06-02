@@ -80,33 +80,30 @@ main = do
     putStrLn "4: wordcount with Conduit v3"
     choice <- getLine
     case choice of
-        "1" -> forever $ do
+        "1" -> do
             startTime <- getCurrentTime
             wordcount
             endTime <- getCurrentTime
             print $ diffUTCTime endTime startTime
-            appendFile "output.txt" (show (diffUTCTime endTime startTime) ++ "\n")
-            -- main
+            main
         "2" -> do
             startTime <- getCurrentTime
             wordcountC
             endTime <- getCurrentTime
             print $ diffUTCTime endTime startTime
             main
-        "3" -> forever $ do
+        "3" -> do
             startTime <- getCurrentTime
             wordcountCv2
             endTime <- getCurrentTime
             print $ diffUTCTime endTime startTime
-            appendFile "output.txt" (show (diffUTCTime endTime startTime) ++ "\n")
-            -- main
-        "4" -> forever $ do
+            main
+        "4" -> do
             startTime <- getCurrentTime
             wordcountCv3
             endTime <- getCurrentTime
             print $ diffUTCTime endTime startTime
-            appendFile "output.txt" (show (diffUTCTime endTime startTime) ++ "\n")
-            -- main
+            main
         "quit" -> return ()
         _ -> do
             putStrLn "Invalid command"
