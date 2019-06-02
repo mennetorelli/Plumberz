@@ -11,21 +11,25 @@ main = do
     writeFile "output.txt" ""
     putStrLn "Number of evaluations: "
     evaluations <- getLine
-    --putStrLn "File dimension: "
-    --fileSizes <- getLine
-    evaluate (read evaluations) [2500, 5000, 7500, 10000, 12500, 15000]
+    putStrLn "File dimension: "
+    fileSizes <- getLine
+    evaluate (read evaluations) (map (read :: String -> Int) (words fileSizes))
 
-evaluate :: Integer -> [Integer] -> IO ()
+
+evaluate :: Int -> [Int] -> IO ()
 evaluate 0 _ = return ()
 evaluate n [] = return ()
 evaluate n (x:xs) = do
     writeFile "input.txt" ""
     generateFile x
     appendFile "output.txt" ("File size: " ++ (show x) ++ "\n")
+    putStrLn $ "Evaluating wordcount, file dimension: " ++ (show x)
     appendFile "output.txt" "wordcount\n"
     evaluate_wc n
+    putStrLn $ "Evaluating wordcount, file dimension: " ++ (show x)
     appendFile "output.txt" "wordcountCv2\n"
     evaluate_wcCv2 n
+    putStrLn $ "Evaluating wordcount, file dimension: " ++ (show x)
     appendFile "output.txt" "wordcountCv3\n"
     evaluate_wcCv3 n
     appendFile "output.txt" "\n"
