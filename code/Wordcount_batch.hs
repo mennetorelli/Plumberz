@@ -5,7 +5,8 @@ module Wordcount_batch (
     wordcountC,
     wordcountCv2,
     wordcountCv3,
-    insertInHashMap) where
+    insertInHashMap,
+    main) where
 
 import Control.Monad
 
@@ -78,6 +79,7 @@ main = do
     putStrLn "2: wordcount with Conduit"
     putStrLn "3: wordcount with Conduit v2"
     putStrLn "4: wordcount with Conduit v3"
+    putStrLn "q: exit"
     choice <- getLine
     case choice of
         "1" -> do
@@ -104,7 +106,7 @@ main = do
             endTime <- getCurrentTime
             print $ diffUTCTime endTime startTime
             main
-        "quit" -> return ()
+        "q" -> return ()
         _ -> do
             putStrLn "Invalid command"
             main

@@ -2,63 +2,88 @@ import System.IO
 
 import Data.Time.Clock
 
-import Wordcount_batch
-import File_generator
+import qualified Wordcount_batch as WCB
+import qualified File_generator as FG
 
 
 main :: IO ()
 main = do
+    putStrLn "Press 1 to evaluate wordcount"
+    putStrLn "Press 2 to evaluate wordcountCv2"
+    putStrLn "Press 3 to evaluate wordcountCv3"
+    putStrLn "Press 4 to evaluate all versions"
+    choice <- getLine
     writeFile "output.txt" ""
     putStrLn "Number of evaluations: "
     evaluations <- getLine
     putStrLn "File dimension: "
     fileSizes <- getLine
-    evaluate (read evaluations) (map (read :: String -> Int) (words fileSizes))
+    let e = read evaluations
+        fs = map (read :: String -> Int) (words fileSizes)
+    case choice of 
+        "1" -> iterate_wc e fs
+        "2" -> iterate_wcCv2 e fs
+        "3" -> iterate_wcCv3 e fs
+        "4" -> do
+            iterate_wc e fs
+            iterate_wcCv2 e fs
+            iterate_wcCv3 e fs
 
 
-evaluate :: Int -> [Int] -> IO ()
-evaluate 0 _ = return ()
-evaluate n [] = return ()
-evaluate n (x:xs) = do
+iterate_wc :: Int -> [Int] -> IO ()
+iterate_wc _ [] = return ()
+iterate_wc n (x:xs) = do
     writeFile "input.txt" ""
-    generateFile x
-    appendFile "output.txt" ("File size: " ++ (show x) ++ "\n")
-    putStrLn $ "Evaluating wordcount, file dimension: " ++ (show x)
-    appendFile "output.txt" "wordcount\n"
-    evaluate_wc n
-    putStrLn $ "Evaluating wordcount, file dimension: " ++ (show x)
-    appendFile "output.txt" "wordcountCv2\n"
-    evaluate_wcCv2 n
-    putStrLn $ "Evaluating wordcount, file dimension: " ++ (show x)
-    appendFile "output.txt" "wordcountCv3\n"
-    evaluate_wcCv3 n
-    appendFile "output.txt" "\n"
-    evaluate n xs
+    FG.generateFile x
+    appendFile "output.txt" ("wordcount, file dimension: " ++ (show x) ++ "\n")
+    evaluate_wc n x
+    iterate_wc n xs
+
+iterate_wcCv2 :: Int -> [Int] -> IO ()
+iterate_wcCv2 _ [] = return ()
+iterate_wcCv2 n (x:xs) = do
+    writeFile "input.txt" ""
+    FG.generateFile x
+    appendFile "output.txt" ("wordcountCv2, file dimension: " ++ (show x) ++ "\n")
+    evaluate_wcCv2 n x
+    iterate_wcCv2 n xs
+
+iterate_wcCv3 :: Int -> [Int] -> IO ()
+iterate_wcCv3 _ [] = return ()
+iterate_wcCv3 n (x:xs) = do
+    writeFile "input.txt" ""
+    FG.generateFile x
+    appendFile "output.txt" ("wordcountCv3, file dimension: " ++ (show x) ++ "\n")
+    evaluate_wcCv3 n x
+    iterate_wcCv3 n xs
 
 
-evaluate_wc 0 = return ()
-evaluate_wc i = do
+evaluate_wc 0 _ = return ()
+evaluate_wc i x = do
+    putStrLn $ "Evaluating wordcount, file dimension: " ++ (show x)
     startTime <- getCurrentTime
-    wordcount
+    WCB.wordcount
     endTime <- getCurrentTime
     print $ diffUTCTime endTime startTime
     appendFile "output.txt" (show (diffUTCTime endTime startTime) ++ "\n")
-    evaluate_wc (i-1)
+    evaluate_wc (i-1) x
 
-evaluate_wcCv2 0 = return ()
-evaluate_wcCv2 i = do
+evaluate_wcCv2 0 _ = return ()
+evaluate_wcCv2 i x = do
+    putStrLn $ "Evaluating wordcountCv2, file dimension: " ++ (show x)
     startTime <- getCurrentTime
-    wordcountCv2
+    WCB.wordcountCv2
     endTime <- getCurrentTime
     print $ diffUTCTime endTime startTime
     appendFile "output.txt" (show (diffUTCTime endTime startTime) ++ "\n")
-    evaluate_wcCv2 (i-1)
+    evaluate_wcCv2 (i-1) x
 
-evaluate_wcCv3 0 = return ()
-evaluate_wcCv3 i = do
+evaluate_wcCv3 0 _ = return ()
+evaluate_wcCv3 i x = do
+    putStrLn $ "Evaluating wordcountCv3, file dimension: " ++ (show x)
     startTime <- getCurrentTime
-    wordcountCv3
+    WCB.wordcountCv3
     endTime <- getCurrentTime
     print $ diffUTCTime endTime startTime
     appendFile "output.txt" (show (diffUTCTime endTime startTime) ++ "\n")
-    evaluate_wcCv3 (i-1)
+    evaluate_wcCv3 (i-1) x
