@@ -1,7 +1,6 @@
 module File_generator (
     generateFile,
-    content,
-    main) where
+    content) where
 
 import System.IO
 
