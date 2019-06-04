@@ -5,7 +5,8 @@ module Wordcount_batch (
     wordcountC,
     wordcountCv2,
     wordcountCv3,
-    insertInHashMap) where
+    insertInHashMap,
+    main) where
 
 import Control.Monad
 

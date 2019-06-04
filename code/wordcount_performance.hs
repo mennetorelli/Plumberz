@@ -2,8 +2,8 @@ import System.IO
 
 import Data.Time.Clock
 
-import Wordcount_batch
-import File_generator
+import qualified Wordcount_batch as WCB
+import qualified File_generator as FG
 
 
 main :: IO ()
@@ -49,7 +49,7 @@ iterate_wc :: Int -> [Int] -> IO ()
 iterate_wc _ [] = return ()
 iterate_wc n (x:xs) = do
     writeFile "input.txt" ""
-    generateFile x
+    FG.generateFile x
     appendFile "output.txt" ("wordcount, file dimension: " ++ (show x) ++ "\n")
     evaluate_wc n x
     iterate_wc n xs
@@ -58,7 +58,7 @@ iterate_wcCv2 :: Int -> [Int] -> IO ()
 iterate_wcCv2 _ [] = return ()
 iterate_wcCv2 n (x:xs) = do
     writeFile "input.txt" ""
-    generateFile x
+    FG.generateFile x
     appendFile "output.txt" ("wordcountCv2, file dimension: " ++ (show x) ++ "\n")
     evaluate_wcCv2 n x
     iterate_wcCv2 n xs
@@ -67,7 +67,7 @@ iterate_wcCv3 :: Int -> [Int] -> IO ()
 iterate_wcCv3 _ [] = return ()
 iterate_wcCv3 n (x:xs) = do
     writeFile "input.txt" ""
-    generateFile x
+    FG.generateFile x
     appendFile "output.txt" ("wordcountCv3, file dimension: " ++ (show x) ++ "\n")
     evaluate_wcCv3 n x
     iterate_wcCv3 n xs
@@ -77,7 +77,7 @@ evaluate_wc 0 _ = return ()
 evaluate_wc i x = do
     putStrLn $ "Evaluating wordcount, remaining evaluations: " ++ (show i) ++ ", file dimension: " ++ (show x)
     startTime <- getCurrentTime
-    wordcount
+    WCB.wordcount
     endTime <- getCurrentTime
     print $ diffUTCTime endTime startTime
     appendFile "output.txt" (show (diffUTCTime endTime startTime) ++ "\n")
@@ -87,7 +87,7 @@ evaluate_wcCv2 0 _ = return ()
 evaluate_wcCv2 i x = do
     putStrLn $ "Evaluating wordcountCv2, " ++ (show i) ++ ", file dimension: " ++ (show x)
     startTime <- getCurrentTime
-    wordcountCv2
+    WCB.wordcountCv2
     endTime <- getCurrentTime
     print $ diffUTCTime endTime startTime
     appendFile "output.txt" (show (diffUTCTime endTime startTime) ++ "\n")
@@ -97,7 +97,7 @@ evaluate_wcCv3 0 _ = return ()
 evaluate_wcCv3 i x = do
     putStrLn $ "Evaluating wordcountCv3, " ++ (show i) ++ ", file dimension: " ++ (show x)
     startTime <- getCurrentTime
-    wordcountCv3
+    WCB.wordcountCv3
     endTime <- getCurrentTime
     print $ diffUTCTime endTime startTime
     appendFile "output.txt" (show (diffUTCTime endTime startTime) ++ "\n")
