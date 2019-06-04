@@ -134,7 +134,7 @@ And it has five constructors:
 * `PipeM`: Require running of a monadic action to get the next `Pipe`.
 * `Leftover`: Return leftover input, which should be provided to future operations.
 
-A `Pipe` is instance of many typeclasses, from the most standard like `Functor`, `Applicative` and `Monad` to more complex ones.
+A `Pipe` is instance of many typeclasses, from the most common like `Functor`, `Applicative` and `Monad` to more complex ones.
 There is the instance of `MonadIO`, which provides `liftIO`. 
 Most importantly, there is the instance of `MonadTrans`, which allows to perform generic `lift` operations.
 Worth noting is also the instance of `MonadResource` which is in turng defined in the Conduit module itself, 
@@ -180,7 +180,7 @@ MonadTrans (ConduitT i o)
 MonadResource m => MonadResource (ConduitT i o m)
 ```
 
-As we have seen in the introduction from a more practical perpecive, 
+As we have seen in the introduction from a more practical perspective, 
 `ConduitT`'s type represents a general component of a pipeline which can consume a stream of input values `i`, 
 produce a stream of output values `o`, perform actions in the `m` monad, and produce a final result `r`. 
 
@@ -556,6 +556,52 @@ and in particular `wordcountCv3` has the best performance among all.
 Then, we aggregated each set of 20 evaluations by means of their median, and plotted again with a bar diagram.
 
 ![png](images/output_3_1.png)
+
+
+770,555,413,864 bytes allocated in the heap
+  40,816,654,216 bytes copied during GC
+   6,048,318,624 bytes maximum residency (19 sample(s))
+      96,021,344 bytes maximum slop
+            5768 MB total memory in use (0 MB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     736855 colls,     0 par   27.562s  42.979s     0.0001s    0.0658s
+  Gen  1        19 colls,     0 par   22.812s  135.420s     7.1274s    81.6471s
+
+  INIT    time    0.000s  (  0.000s elapsed)
+  MUT     time  364.516s  (880.852s elapsed)
+  GC      time   50.375s  (178.399s elapsed)
+  EXIT    time    0.000s  (  0.006s elapsed)
+  Total   time  414.891s  (1059.257s elapsed)
+
+  %GC     time       0.0%  (0.0% elapsed)
+
+  Alloc rate    2,113,916,005 bytes per MUT second
+
+  Productivity  87.9% of total user, 83.2% of total elapsed
+
+
+  746,342,214,640 bytes allocated in the heap
+  14,596,284,984 bytes copied during GC
+         630,776 bytes maximum residency (7150 sample(s))
+         204,808 bytes maximum slop
+               0 MB total memory in use (0 MB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0     704532 colls,     0 par   13.375s  14.077s     0.0000s    0.0161s
+  Gen  1      7150 colls,     0 par    2.422s   2.182s     0.0003s    0.0194s
+
+  INIT    time    0.000s  (  0.001s elapsed)
+  MUT     time  286.641s  (340.966s elapsed)
+  GC      time   15.797s  ( 16.260s elapsed)
+  EXIT    time    0.000s  (  0.000s elapsed)
+  Total   time  302.438s  (357.227s elapsed)
+
+  %GC     time       0.0%  (0.0% elapsed)
+
+  Alloc rate    2,603,755,886 bytes per MUT second
+
+  Productivity  94.8% of total user, 95.4% of total elapsed
 
 
 # Distributed wordcount with network-conduit and async
