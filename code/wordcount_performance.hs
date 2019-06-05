@@ -72,7 +72,7 @@ iterate_wcCv3 n (x:xs) = do
     evaluate_wcCv3 n x
     iterate_wcCv3 n xs
 
-
+evaluate_wc :: Int -> Int -> IO ()
 evaluate_wc 0 _ = return ()
 evaluate_wc i x = do
     putStrLn $ "Evaluating wordcount, remaining evaluations: " ++ (show i) ++ ", file dimension: " ++ (show x)
@@ -83,6 +83,7 @@ evaluate_wc i x = do
     appendFile "output.txt" (show (diffUTCTime endTime startTime) ++ "\n")
     evaluate_wc (i-1) x
 
+evaluate_wcCv2 :: Int -> Int -> IO ()
 evaluate_wcCv2 0 _ = return ()
 evaluate_wcCv2 i x = do
     putStrLn $ "Evaluating wordcountCv2, " ++ (show i) ++ ", file dimension: " ++ (show x)
@@ -93,6 +94,7 @@ evaluate_wcCv2 i x = do
     appendFile "output.txt" (show (diffUTCTime endTime startTime) ++ "\n")
     evaluate_wcCv2 (i-1) x
 
+evaluate_wcCv3 :: Int -> Int -> IO ()
 evaluate_wcCv3 0 _ = return ()
 evaluate_wcCv3 i x = do
     putStrLn $ "Evaluating wordcountCv3, " ++ (show i) ++ ", file dimension: " ++ (show x)
