@@ -14,13 +14,13 @@ main = do
     putStrLn "Press 4 to evaluate all versions"
     choice <- getLine
     writeFile "output.txt" ""
-    putStrLn "Number of evaluations: "
+    putStrLn "Number of evaluations: "  -- 20
     evaluations <- getLine
     putStrLn "Create new files? y/n"
     newFile <- getLine
     case newFile of 
         "y" -> do
-            putStrLn "File dimensions: "
+            putStrLn "File dimensions: "  -- 2500 5000 7500 1000 12500 15000
             fileSizes <- getLine
             let e = read evaluations
                 fs = map (read :: String -> Int) (words fileSizes)
