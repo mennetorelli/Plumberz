@@ -141,7 +141,7 @@ main = do
     let e = read evaluations
     case choice of
         "1" -> do
-            putStrLn "Size of lists: "  -- 10000000 30000000 50000000 70000000
+            putStrLn "Size of lists: "  -- 10000000 40000000 70000000 100000000
             sizes <- getLine
             let s = map (read :: String -> Int) (words sizes)
             iterate_list e s
@@ -157,7 +157,7 @@ main = do
                     iterate_file e s
                 "n" -> do
                     evaluate_file_1 e 0
-                    evaluate_file_1 e 0
+                    evaluate_file_2 e 0
         "3" -> do
             putStrLn "Generate new files? y/n"
             newFiles <- getLine
@@ -170,7 +170,7 @@ main = do
                     iterate_file_mf e s
                 "n" -> do
                     evaluate_file_mf_1 e 0
-                    evaluate_file_mf_1 e 0
+                    evaluate_file_mf_2 e 0
         "4" -> do
             putStrLn "Generate new files? y/n"
             newFiles <- getLine
