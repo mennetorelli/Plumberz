@@ -13,19 +13,19 @@ iterate_list :: Int -> [Int] -> IO ()
 iterate_list _ [] = return ()
 iterate_list n (x:xs) = do
     -- List
-    appendFile "output.txt" ("List version, file dimension: " ++ (show x) ++ "\n")
+    appendFile "output.txt" ("List version, list dimension: " ++ (show x) ++ "\n")
     evaluate_list_1 n x
     -- Conduit
-    appendFile "output.txt" ("Conduit version, file dimension: " ++ (show x) ++ "\n")
+    appendFile "output.txt" ("Conduit version, list dimension: " ++ (show x) ++ "\n")
     evaluate_list_2 n x
     iterate_list n xs
 
 evaluate_list_1 :: Int -> Int -> IO ()
 evaluate_list_1 0 _ = return ()
 evaluate_list_1 i x = do
-    putStrLn $ "Evaluating list version, remaining evaluations: " ++ (show i) ++ ", file dimension: " ++ (show x)
+    putStrLn $ "Evaluating list version, remaining evaluations: " ++ (show i) ++ ", list dimension: " ++ (show x)
     startTime <- getCurrentTime
-    print $ foldr (+) 0 (take i [1..])
+    print $ foldr (+) 0 (take x [1..])
     endTime <- getCurrentTime
     print $ diffUTCTime endTime startTime
     appendFile "output.txt" (show (diffUTCTime endTime startTime) ++ "\n")
@@ -35,9 +35,9 @@ evaluate_list_1 i x = do
 evaluate_list_2 :: Int -> Int -> IO ()
 evaluate_list_2 0 _ = return ()
 evaluate_list_2 i x = do
-    putStrLn $ "Evaluating Conduit version, remaining evaluations: " ++ (show i) ++ ", file dimension: " ++ (show x)
+    putStrLn $ "Evaluating Conduit version, remaining evaluations: " ++ (show i) ++ ", list dimension: " ++ (show x)
     startTime <- getCurrentTime
-    print $ runConduitPure $ yieldMany [1..] .| takeC i .| sumC
+    print $ runConduitPure $ yieldMany [1..] .| takeC x .| sumC
     endTime <- getCurrentTime
     print $ diffUTCTime endTime startTime
     appendFile "output.txt" (show (diffUTCTime endTime startTime) ++ "\n")
