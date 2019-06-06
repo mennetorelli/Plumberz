@@ -587,10 +587,12 @@ and for bigger files it produces a stack overflow.
 
 ![png](images/output_2_2.png)
 
-From the boxplot we can see that generally the execution times are quite different, 
-especially for the conduit versions in which we have also many outliers.
+The first three boxes are related to the file of size 2000, then the next three are related file of size 3000, and so on.
+From the box plot we can see that generally the execution times are quite different, 
+especially for the Conduit versions in which we have also many outliers.
 
 Then, we aggregated each set of 20 evaluations by means of their median, and plotted again with a bar diagram.
+Again, the bars are grouped by input file (from 2000 to 5000) and the elapsed time is in seconds.
 
 ![png](images/output_4_1.png)
 
@@ -601,13 +603,12 @@ We used the command `ghc --make` with `-O` flag, which enables a set of optimiza
 Since running the executable code is faster and more reliable than using the Ghci console, 
 we used for the second evaluation files repeated respectively 2500, 5000, 7500, 10000, 12500 and 15000 times.
 
-The results obtained were quite surprising, because they highlighted that `wordcount` and `wordcountCv3`
-have very similar performances, but the most important result is that the `wordcountCv2` function is very inefficient, 
-especially for large input files.
+The results obtained are quite surprising, because they highlight that `wordcount` and `wordcountCv3` have very similar performances,
+but the most surprising result is that the `wordcountCv2` function seems to be very inefficient, especially for large input files.
 
 ![png](images/output_6_1.png)
 
-Again the bar diagram is obtained aggregating each set of 20 evaluations by means of their median.
+Again the bar diagram is obtained aggregating each set of 20 evaluations by their median.
 
 ![png](images/output_8_1.png)
 
