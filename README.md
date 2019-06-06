@@ -1,3 +1,29 @@
+# Table of contents
+
+* [Intro](#Intro)
+* [Conduit library](#Conduit-library)
+  * [Practical introduction](#Practical-introduction)
+  * [Conduit package overview](#Conduit-package-overview)
+    * [Pipe datatype](#Pipe-datatype)
+    * [From Pipe to ConduitT newtype](#From-Pipe-to-ConduitT-newtype)
+    * [Primitives](#Primitives)
+    * [ZipSink, ZipSource and ZipConduit newtypes](#ZipSink,-ZipSource-and-ZipConduit-newtypes)
+    * [Tubes, Pipes and Conduit comparison](#Tubes,-Pipes-and-Conduit-comparison)
+* [Batch wordcount with Conduit](#Batch-wordcount-with-Conduit)
+  * [Batch version without Conduit](#Batch-version-without-Conduit)
+  * [Wordcount Conduit version](#Wordcount-Conduit-version)
+  * [Wordcount Conduit version - single pipeline](#Wordcount-Conduit-version---single-pipeline)
+* [Performance evaluation](#Performance-evaluation)
+  * [Wordcount evaluation - Ghci](#Wordcount-evaluation---Ghci)
+  * [Wordcount evaluation - executable file](#Wordcount-evaluation---executable-file)
+  * [General evaluation of simpler pipelines](#General-evaluation-of-simpler-pipelines)
+  * [Performance conclusions](#Performance-conclusions)
+* [Distributed wordcount with network-conduit and async](#Distributed-wordcount-with-network-conduit-and-async)
+  * [Synchronous wordcount](#Synchronous-wordcount)
+  * [Wordcount with timeout](#Wordcount-with-timeout)
+  * [Distributed wordcount conclusions](#Distributed-wordcount-Conclusions)
+
+
 # Intro
 This project extends the research conducted by [Luca Lodi](https://github.com/lulogit) and [Philippe Scorsolini](https://github.com/phisco) 
 for the course of "Principles of Programming Languages" at Politecnico di Milano 
@@ -552,7 +578,7 @@ using [Pandas](https://pandas.pydata.org/) library for Python.
 A dedicated script [Wordcount_performance.hs](code/Wordcount_performance.hs) 
 has been built to automatize executions and their collection of data.
 
-## Wordcount on Ghci
+## Wordcount evaluation - Ghci
 
 The first evaluation was conducted on Ghci using files repeated respectively 2000, 3000, 4000, 5000 and 6000 times.
 The result higlight clearly which is the advantage of using Conduit w.r.t. to a standard lazy I/O implementation: 
@@ -568,7 +594,7 @@ Then, we aggregated each set of 20 evaluations by means of their median, and plo
 
 ![png](images/output_4_1.png)
 
-## Wordcount on executable file
+## Wordcount evaluation - executable file
 
 Then, we decided to compile the scripts and evaluate the executable file produced by the compilation.
 We used the command `ghc --make` with `-O` flag, which enables a set of optimizations during the compilation.
@@ -754,7 +780,7 @@ The results became the following:
 So we can see that the performance gain of the conduit version is much smaller, 
 and that indicates that the stream processing paradigm adds much overhead to the computation.
 
-## Conclusions
+## Performance conclusions
 
 So the conclusion is that if we have a program doing some one-off processing of a large file, 
 as long as we have a lazy I/O version running fine now, 
@@ -766,6 +792,8 @@ a well optimized lazy I/O solution would out-perform a well optimized streaming 
 
 
 # Distributed wordcount with network-conduit and async
+
+# Synchronous wordcount
 Once explored the main features of the Conduit library, we decided to extend the wordcount snippet to more practical use cases, 
 e.g. distributing the logic between a client and a server.
 
@@ -1106,3 +1134,6 @@ client_filev2 = runTCPClient (clientSettings 4000 "localhost") $ \server ->
         (runConduit $ appSource server 
             .| stdoutC)
 ```
+
+
+## Distributed wordcount conclusions
