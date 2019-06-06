@@ -532,38 +532,45 @@ insertInHashMap x v = do
 ```
 
 
-## Performance evaluation
-We decided to conduct a simple performance evaluation to see the differences between the preliminar version without Conduit 
-and the two single-pipeline Conduit versions. Our parameter was the waiting time.
+# Performance evaluation
 
-The evaluation was conducted as follows: we executed each wordcount version 20 times, with different file inputs.
+We decided to conduct a simple performance evaluation to see the differences between the preliminar version without Conduit (`wordcount`)
+and the two single-pipeline Conduit versions (`wordcountCv2` and `wordcountCv3`). Our parameter was the waiting time.
+
+The evaluation was conducted as follows: we evaluated each wordcount using different file inputs, 
+and for each file we executed the function 20 times.
 Specifically, we used a .txt file of about 100 words (plus punctuation)
 whose content is defined in the [File_generator.hs](code/File_generator.hs) script, 
 and such file was repeated a variable number of times depending on what we were going to evaluate.
 So, from now on, when we refer to file size we are actually referring to the times the content of the file is repeated.
-We measured the time at the beginning and at the end of each wordcount execution by means of the `Data.Time.Clock` package, 
+We measured the time at the beginning and at the end of each wordcount execution by means of the `Data.Time.Clock` module, 
 and then we saved the elapsed time for each of the executions.
 
-The results are available in [this file](performance/data.xlsx).
-Such results have been analysed and visualized with the [Jupyter Notebook](https://jupyter.org/) 
-using the [Pandas](https://pandas.pydata.org/) library for Python.
+The results of each evaluation are available in [this file](performance/data.xlsx).
+Such results have been analysed and visualized with [Jupyter Notebook](https://jupyter.org/) 
+using [Pandas](https://pandas.pydata.org/) library for Python.
 A dedicated script [Wordcount_performance.hs](code/Wordcount_performance.hs) 
-has been built to automatize the collection of data of the various executions.
+has been built to automatize executions and their collection of data.
+
+## Wordcount on Ghci
 
 The first evaluation was conducted on Ghci using files repeated respectively 2000, 3000, 4000, 5000 and 6000 times.
-The result hignight clearly which is the advantage of using Conduit w.r.t. to a standard lazy I/O implementation: 
+The result higlight clearly which is the advantage of using Conduit w.r.t. to a standard lazy I/O implementation: 
 in the boxplot reported below, in fact, we can see that the I/O version works only with the files which size is below 4000, 
-and for bigger files we have a stack overflow.
+and for bigger files it produces a stack overflow.
 
 ![png](images/output_2_2.png)
+
+From the boxplot we can see that generally the execution times are quite different, 
+especially for the conduit versions in which we have also many outliers.
 
 Then, we aggregated each set of 20 evaluations by means of their median, and plotted again with a bar diagram.
 
 ![png](images/output_4_1.png)
 
-From the boxplot we can see that generally the execution times are quite different, 
-especially for the conduit versions in which we have also many outliers.
-So we decided to compile the scripts and evaluate the executable file produced by the compilation.
+## Wordcount on executable file
+
+Then, we decided to compile the scripts and evaluate the executable file produced by the compilation.
 We used the command `ghc --make` with `-O` flag, which enables a set of optimizations during the compilation.
 Since running the executable code is faster and more reliable than using the Ghci console, 
 we used for the second evaluation files repeated respectively 2500, 5000, 7500, 10000, 12500 and 15000 times.
@@ -578,12 +585,16 @@ Again the bar diagram is obtained aggregating each set of 20 evaluations by mean
 
 ![png](images/output_8_1.png)
 
-It's worth noting from the boxpot that the `wordcountCv2` has more outliers than the other versions, 
-in particular in each set of 20 evaluations we have one run that takes approximately three times than the others in the same set. 
-To investigate this fact we evaluated again 20 times the `wordcountCv2` function with an input file of 15000, this time running the executable with `+RTS -s` options, which allows to see how much time is spent in the garbage collector. 
+It's worth noting from the box plot that the `wordcountCv2` has more outliers than the other versions, 
+in particular in each set of 20 evaluations we have at least one run 
+that takes approximately three times than the others in the same set. 
+To investigate this fact we evaluated again 20 times the `wordcountCv2` function with an input file of size 15000 
+we evaluated the executable with `+RTS -s` options, which allows to see how much time is spent in the garbage collector. 
 (For more information, see [Measuring performance](https://wiki.haskell.org/Performance/GHC#Measuring_performance).)
 
 The results highlight that, in fact, many of the time required to run `wordcountCv2` are in fact spent by the garbage collector.
+The following data tell how much time is being spent running the program itself (MUT time), 
+and how much time spent in the garbage collector (GC time). 
 
 ```
 1,155,372,089,584 bytes allocated in the heap
@@ -609,8 +620,7 @@ The results highlight that, in fact, many of the time required to run `wordcount
   Productivity  87.2% of total user, 84.0% of total elapsed
 ```
 
-Those are the result of the `wordcountCv3` eexcution, which show that the GC time is much less that the MUT time.
-
+Those are the result of the `wordcountCv3` execution, which show that the GC time is much less that the MUT time. 
 
 ```
 1,119,052,163,176 bytes allocated in the heap
@@ -636,9 +646,11 @@ Those are the result of the `wordcountCv3` eexcution, which show that the GC tim
   Productivity  95.1% of total user, 95.1% of total elapsed
 ```
 
-However, the results obtained so fare pose another question about the real performance of Contuit, 
-since there is no evidence that the Conduit version is faster than the initial lazy I/O version.
-To investigate if implementing a function using Conduit provide real improvements, 
+## General evaluation of simpler pipelines
+
+However, the results obtained so fare pose another question about the overall Conduit performance, 
+since there is no evidence that the `wordcountCv3` version is faster than the initial lazy I/O version.
+To investigate whether implementing a function using Conduit provide performance improvements or not, 
 we decided to test simpler pipelines and evaluate their performances compared to the lazy I/O counterparts.
 The code used for this evaluation is available in [Performance_example.hs](code/Performance_example.hs).
 
@@ -656,12 +668,14 @@ And this is the Conduit version:
 print $ runConduitPure $ yieldMany [1..] .| takeC x .| sumC
 ```
 
-We evaluated both versions 20 times, summing respectively the first 10000000, 40000000, 70000000 and 100000000 integers,
-and this is the result we obtained:
+We evaluated both versions 20 times, summing the first 10000000, 40000000, 70000000 and 100000000 integers,
+and these are the obtained results:
 
 ![png](images/output_11_1.png)
 
-Note that for this evaluation, we skipped the `-O` flag, because it provided a weird optimization that enabled the program to cache the result of each iteration, so that iterating the function for instance 10 times, the results were the following:
+Note that for this evaluation, we skipped the `-O` flag, because it enabled a weird optimization 
+that allowed the program to cache the result of each iteration, 
+so that, iterating the function 10 times, we obtained the following results:
 
 ```
 38.2066878s
@@ -676,12 +690,13 @@ Note that for this evaluation, we skipped the `-O` flag, because it provided a w
 0.8749654s
 ```
 
-Anyway, the results show that with a simple program like this, built with a very short pipeline, 
+Anyway, the results show that with a simple program like this, built using a very short pipeline, 
 we can achieve considerable performance improvements compared to the lazy I/O version.
-This made us reason whether the problem in our wordcount function was the reading from a file, 
-so we shifted our attention on that part.
 
-For this reason, we built a simple function that reads from an input file, and copies its contents in an output file.
+This made us question whether the problem in our wordcount function was the reading from a file, 
+so we shifted our attention on that aspect.
+For this reason, we built a simple function that reads an input file, and copies its contents in an output file.
+
 This is the function built with the System.IO module, as in the `wordcount` function.
 
 ```haskell
@@ -700,7 +715,8 @@ runConduitRes $ sourceFile "input.txt"
     .| sinkFile "outputC.txt"
 ```
 
-These are the result obtained (always iterating the code 20 times), using as input files of size 10000, 30000 and 50000.
+These are the result obtained using as input files of size 10000, 30000 and 50000
+(always iterating the code 20 times for each input file):
 
 ![png](images/output_14_1.png)
 
@@ -708,9 +724,10 @@ Again the results show a considerable performance gain using the Conduit version
 so reading/writing from a file does not result in a performance degradation.
 
 Our last guess was trying to complicate the pipeline adding some intermediate steps between reading and writing, 
-and for this reason we inserted in the computation steps a `toUpper` function which converts all characters in uppercase,
-and a `filter isAlphaNum`, which deletes all the puntuation characters.
-The two function became therefore: 
+and for this reason we inserted in the computation two steps: 
+* Mapping a `toUpper` function which converts all characters in uppercase
+* Filtering all non-alphanumerical characters.
+The two function become therefore: 
 
 ```haskell
 withFile "input.txt" ReadMode $ \input ->
@@ -719,7 +736,7 @@ withFile "input.txt" ReadMode $ \input ->
         hPutStr output $ content
 ```
 
-And:
+And with Conduit:
 
 ```haskell
 runConduitRes $ sourceFile "input.txt"
@@ -736,6 +753,15 @@ The results became the following:
 
 So we can see that the performance gain of the conduit version is much smaller, 
 and that indicates that the stream processing paradigm adds much overhead to the computation.
+
+## Conclusions
+
+So the conclusion is that if we have a program doing some one-off processing of a large file, 
+as long as we have a lazy I/O version running fine now, 
+there's probably no good performance reason to convert it over to a streaming package.
+In fact, streaming is more likely to add some overhead, 
+so the evidence is that, in non trivial examples like our wordcount case, 
+a well optimized lazy I/O solution would out-perform a well optimized streaming solution.
 
 
 
