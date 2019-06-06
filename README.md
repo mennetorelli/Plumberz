@@ -10,7 +10,7 @@
     * [ZipSink, ZipSource and ZipConduit newtypes](#ZipSink,-ZipSource-and-ZipConduit-newtypes)
     * [Tubes, Pipes and Conduit comparison](#Tubes,-Pipes-and-Conduit-comparison)
 * [Batch wordcount with Conduit](#Batch-wordcount-with-Conduit)
-  * [Batch version without Conduit](#Batch-version-without-Conduit)
+  * [I/O version without Conduit](#I/O-version-without-Conduit)
   * [Wordcount Conduit version](#Wordcount-Conduit-version)
   * [Wordcount Conduit version - single pipeline](#Wordcount-Conduit-version---single-pipeline)
 * [Performance evaluation](#Performance-evaluation)
@@ -395,8 +395,8 @@ and finally prints the result to the user.
 
 All the versions described in this section are in the [Wordcount_batch.hs](code/Wordcount_batch.hs) file.
 
-## Batch version without Conduit
-First of all, we implemented a version of the wordcount script without using Conduit library, 
+## I/O version without Conduit
+First of all, we implemented a lazy I/O version of the wordcount script without using Conduit library, 
 to higlight the differences between a non-Conduit and a Conduit version, and understand the benefits that Conduit provides. 
 
 ```haskell
@@ -417,14 +417,14 @@ wordcount = withFile "input.txt" ReadMode $ \handle -> do
             $ (Data.Text.words . pack) content)
  ```
 
- The rationale is as follows: first of all the function reads from the input.txt file by means of withFile function, 
- then extracts the content with `hGetContents`, 
- and finally accumulates all the words contained in a hashmap by means of a `foldr` used with `(\x v -> insertWith (+) x 1 v)` function. 
- The words are obtained from the `String` read from the file using a combination of `fmap`s: 
- first of all the string is converted in a `Text` with `pack` and split in a series of `Text`s with `words` function, 
- then such words are cleaned from eventual non alphanumerical characters, and finally lowercased due to prevent duplicates.
+The rationale is as follows: first of all the function reads from the input.txt file by means of withFile function, 
+then extracts the content with `hGetContents`, 
+and finally accumulates all the words contained in a hashmap by means of a `foldr` used with `(\x v -> insertWith (+) x 1 v)` function. 
+The words are obtained from the `String` read from the file using a combination of `fmap`s: 
+first of all the string is converted in a `Text` with `pack` and split in a series of `Text`s with `words` function, 
+then such words are cleaned from eventual non alphanumerical characters, and finally lowercased due to prevent duplicates.
 
-This non-Conduit example works fine, but the main problem compared to any Conduit version is that the memory usage is not constant: 
+This I/O example works fine, but the main problem compared to any Conduit version is that the memory usage is not constant: 
 the more the file size grows, the more there are possibilities of a stack overflow.
 
 
