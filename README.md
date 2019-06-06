@@ -646,7 +646,7 @@ and how much time spent in the garbage collector (GC time).
   Productivity  87.2% of total user, 84.0% of total elapsed
 ```
 
-Those are the result of the `wordcountCv3` execution, which show that the GC time is much less that the MUT time. 
+Those are the results of the `wordcountCv3` execution, which show that the GC time is much less that the MUT time. 
 
 ```
 1,119,052,163,176 bytes allocated in the heap
@@ -673,7 +673,6 @@ Those are the result of the `wordcountCv3` execution, which show that the GC tim
 ```
 
 ## General evaluation of simpler pipelines
-
 However, the results obtained so fare pose another question about the overall Conduit performance, 
 since there is no evidence that the `wordcountCv3` version is faster than the initial lazy I/O version.
 To investigate whether implementing a function using Conduit provide performance improvements or not, 
@@ -681,7 +680,6 @@ we decided to test simpler pipelines and evaluate their performances compared to
 The code used for this evaluation is available in [Performance_example.hs](code/Performance_example.hs).
 
 First of all, we compared the performances of a very simple function which sums the first x integers of an infinite list.
-
 The standard version is built like this:
 
 ```haskell
@@ -1064,7 +1062,7 @@ extractHashMap hashMap = if hashMap == Nothing
 
 First of all, to handle the concept of time correctly, we have to create a separate thread, 
 to let the time time counting and the building of the hashmap to happen in parallel. 
-To achieve this, we again rely on the `concurrently` of the `Control.Concurrent.Async` package. 
+To achieve this, we again rely on the `concurrently` of the `Control.Concurrent.Async` module of the async package. 
 The rationale is that one thread receives the stream of data from the client and produces the hashmap, 
 and the other one at each window closing consumes the data sending the result to the client.
 
@@ -1137,3 +1135,8 @@ client_filev2 = runTCPClient (clientSettings 4000 "localhost") $ \server ->
 
 
 ## Distributed wordcount conclusions
+The `network-conduit` package allows to extend the stream processing paradigm to a client-server architecture 
+without big efforts. Howerver, problems arise when we have an accumulation step in a pipeline, 
+because some workarounds are needed to make an actor aware that the other actor has finished sending data to it. 
+Moreover, if we want to pull in the concept of time and asyncronicity to implement the time window, 
+we have to rely on the `async` package because Conduit doesn't have a package supporting multithreading.
