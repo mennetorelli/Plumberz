@@ -399,7 +399,7 @@ wordcount = withFile "input.txt" ReadMode $ \handle -> do
  then such words are cleaned from eventual non alphanumerical characters, and finally lowercased due to prevent duplicates.
 
 This non-Conduit example works fine, but the main problem compared to any Conduit version is that the memory usage is not constant: 
-the more the file size grows, the more there are possibilities of a stack overflow exception.
+the more the file size grows, the more there are possibilities of a stack overflow.
 
 
 ## Wordcount Conduit version
@@ -537,71 +537,206 @@ We decided to conduct a simple performance evaluation to see the differences bet
 and the two single-pipeline Conduit versions. Our parameter was the waiting time.
 
 The evaluation was conducted as follows: we executed each wordcount version 20 times, with different file inputs.
-Specifically, we used a file with about 100 words (plus punctuation), 
-which was repeated respectively 2500, 5000, 7500, 10000, 12500 and 15000 times.
-We took the time at the beginning and at the end of each wordcount execution with `Data.Time.Clock`, 
+Specifically, we used a .txt file of about 100 words (plus punctuation)
+whose content is defined in the [File_generator.hs](code/File_generator.hs) script, 
+and such file was repeated a variable number of times depending on what we were going to evaluate.
+So, from now on, when we refer to file size we are actually referring to the times the content of the file is repeated.
+We measured the time at the beginning and at the end of each wordcount execution by means of the `Data.Time.Clock` package, 
 and then we saved the elapsed time for each of the executions.
-The results are available in [this file](performance/data.xlsx).
-Such results have been analysed and visualized with [The Jupyter Notebook](https://jupyter.org/) 
-using the [Pandas](https://pandas.pydata.org/) lybrary for Python.
 
+The results are available in [this file](performance/data.xlsx).
+Such results have been analysed and visualized with the [Jupyter Notebook](https://jupyter.org/) 
+using the [Pandas](https://pandas.pydata.org/) library for Python.
 A dedicated script [Wordcount_performance.hs](code/Wordcount_performance.hs) 
 has been built to automatize the collection of data of the various executions.
 
-This boxplot shows that the Conduit versions have a better performance than the basic one, 
-and in particular `wordcountCv3` has the best performance among all.
+The first evaluation was conducted on Ghci using files repeated respectively 2000, 3000, 4000, 5000 and 6000 times.
+The result hignight clearly which is the advantage of using Conduit w.r.t. to a standard lazy I/O implementation: 
+in the boxplot reported below, in fact, we can see that the I/O version works only with the files which size is below 4000, 
+and for bigger files we have a stack overflow.
 
-![png](images/output_1_1.png)
+![png](images/output_2_2.png)
 
 Then, we aggregated each set of 20 evaluations by means of their median, and plotted again with a bar diagram.
 
-![png](images/output_3_1.png)
+![png](images/output_4_1.png)
 
+From the boxplot we can see that generally the execution times are quite different, 
+especially for the conduit versions in which we have also many outliers.
+So we decided to compile the scripts and evaluate the executable file produced by the compilation.
+We used the command `ghc --make` with `-O` flag, which enables a set of optimizations during the compilation.
+Since running the executable code is faster and more reliable than using the Ghci console, 
+we used for the second evaluation files repeated respectively 2500, 5000, 7500, 10000, 12500 and 15000 times.
 
-770,555,413,864 bytes allocated in the heap
-  40,816,654,216 bytes copied during GC
-   6,048,318,624 bytes maximum residency (19 sample(s))
-      96,021,344 bytes maximum slop
-            5768 MB total memory in use (0 MB lost due to fragmentation)
+The results obtained were quite surprising, because they highlighted that `wordcount` and `wordcountCv3`
+have very similar performances, but the most important result is that the `wordcountCv2` function is very inefficient, 
+especially for large input files.
+
+![png](images/output_6_1.png)
+
+Again the bar diagram is obtained aggregating each set of 20 evaluations by means of their median.
+
+![png](images/output_8_1.png)
+
+It's worth noting from the boxpot that the `wordcountCv2` has more outliers than the other versions, 
+in particular in each set of 20 evaluations we have one run that takes approximately three times than the others in the same set. 
+To investigate this fact we evaluated again 20 times the `wordcountCv2` function with an input file of 15000, this time running the executable with `+RTS -s` options, which allows to see how much time is spent in the garbage collector. 
+(For more information, see [Measuring performance](https://wiki.haskell.org/Performance/GHC#Measuring_performance).)
+
+The results highlight that, in fact, many of the time required to run `wordcountCv2` are in fact spent by the garbage collector.
+
+```
+1,155,372,089,584 bytes allocated in the heap
+  57,899,648,064 bytes copied during GC
+   9,072,121,160 bytes maximum residency (17 sample(s))
+     103,302,392 bytes maximum slop
+            8651 MB total memory in use (0 MB lost due to fragmentation)
 
                                      Tot time (elapsed)  Avg pause  Max pause
-  Gen  0     736855 colls,     0 par   27.562s  42.979s     0.0001s    0.0658s
-  Gen  1        19 colls,     0 par   22.812s  135.420s     7.1274s    81.6471s
+  Gen  0     1104943 colls,     0 par   45.906s  90.157s     0.0001s    0.0256s
+  Gen  1        17 colls,     0 par   32.969s  232.467s     13.6745s    137.4735s
 
   INIT    time    0.000s  (  0.000s elapsed)
-  MUT     time  364.516s  (880.852s elapsed)
-  GC      time   50.375s  (178.399s elapsed)
-  EXIT    time    0.000s  (  0.006s elapsed)
-  Total   time  414.891s  (1059.257s elapsed)
+  MUT     time  539.594s  (1693.475s elapsed)
+  GC      time   78.875s  (322.624s elapsed)
+  EXIT    time    0.000s  (  0.016s elapsed)
+  Total   time  618.469s  (2016.116s elapsed)
 
   %GC     time       0.0%  (0.0% elapsed)
 
-  Alloc rate    2,113,916,005 bytes per MUT second
+  Alloc rate    2,141,188,791 bytes per MUT second
 
-  Productivity  87.9% of total user, 83.2% of total elapsed
+  Productivity  87.2% of total user, 84.0% of total elapsed
+```
+
+Those are the result of the `wordcountCv3` eexcution, which show that the GC time is much less that the MUT time.
 
 
-  746,342,214,640 bytes allocated in the heap
-  14,596,284,984 bytes copied during GC
-         630,776 bytes maximum residency (7150 sample(s))
-         204,808 bytes maximum slop
+```
+1,119,052,163,176 bytes allocated in the heap
+  19,755,079,352 bytes copied during GC
+         245,784 bytes maximum residency (8502 sample(s))
+          29,896 bytes maximum slop
                0 MB total memory in use (0 MB lost due to fragmentation)
 
                                      Tot time (elapsed)  Avg pause  Max pause
-  Gen  0     704532 colls,     0 par   13.375s  14.077s     0.0000s    0.0161s
-  Gen  1      7150 colls,     0 par    2.422s   2.182s     0.0003s    0.0194s
+  Gen  0     1058668 colls,     0 par   17.906s  18.140s     0.0000s    0.0006s
+  Gen  1      8502 colls,     0 par    1.016s   1.155s     0.0001s    0.0236s
 
-  INIT    time    0.000s  (  0.001s elapsed)
-  MUT     time  286.641s  (340.966s elapsed)
-  GC      time   15.797s  ( 16.260s elapsed)
+  INIT    time    0.000s  (  0.002s elapsed)
+  MUT     time  365.172s  (373.761s elapsed)
+  GC      time   18.922s  ( 19.295s elapsed)
   EXIT    time    0.000s  (  0.000s elapsed)
-  Total   time  302.438s  (357.227s elapsed)
+  Total   time  384.094s  (393.058s elapsed)
 
   %GC     time       0.0%  (0.0% elapsed)
 
-  Alloc rate    2,603,755,886 bytes per MUT second
+  Alloc rate    3,064,453,315 bytes per MUT second
 
-  Productivity  94.8% of total user, 95.4% of total elapsed
+  Productivity  95.1% of total user, 95.1% of total elapsed
+```
+
+However, the results obtained so fare pose another question about the real performance of Contuit, 
+since there is no evidence that the Conduit version is faster than the initial lazy I/O version.
+To investigate if implementing a function using Conduit provide real improvements, 
+we decided to test simpler pipelines and evaluate their performances compared to the lazy I/O counterparts.
+The code used for this evaluation is available in [Performance_example.hs](code/Performance_example.hs).
+
+First of all, we compared the performances of a very simple function which sums the first x integers of an infinite list.
+
+The standard version is built like this:
+
+```haskell
+print $ foldr (+) 0 (take x [1..])
+```
+
+And this is the Conduit version:
+
+```haskell
+print $ runConduitPure $ yieldMany [1..] .| takeC x .| sumC
+```
+
+We evaluated both versions 20 times, summing respectively the first 10000000, 40000000, 70000000 and 100000000 integers,
+and this is the result we obtained:
+
+![png](images/output_11_1.png)
+
+Note that for this evaluation, we skipped the `-O` flag, because it provided a weird optimization that enabled the program to cache the result of each iteration, so that iterating the function for instance 10 times, the results were the following:
+
+```
+38.2066878s
+4.3696857s
+1.3367605s
+0.9950032s
+0.9399968s
+0.9039936s
+0.9079987s
+0.9119587s
+0.9090151s
+0.8749654s
+```
+
+Anyway, the results show that with a simple program like this, built with a very short pipeline, 
+we can achieve considerable performance improvements compared to the lazy I/O version.
+This made us reason whether the problem in our wordcount function was the reading from a file, 
+so we shifted our attention on that part.
+
+For this reason, we built a simple function that reads from an input file, and copies its contents in an output file.
+This is the function built with the System.IO module, as in the `wordcount` function.
+
+```haskell
+withFile "input.txt" ReadMode $ \input ->
+    withFile "outputS.txt" WriteMode $ \output -> do
+        content <- hGetContents input
+        hPutStr output $ content
+```
+
+And this is in turn the Conduit version:
+
+```haskell
+runConduitRes $ sourceFile "input.txt"
+    .| decodeUtf8C
+    .| encodeUtf8C
+    .| sinkFile "outputC.txt"
+```
+
+These are the result obtained (always iterating the code 20 times), using as input files of size 10000, 30000 and 50000.
+
+![png](images/output_14_1.png)
+
+Again the results show a considerable performance gain using the Conduit version instead of the lazy I/O one,
+so reading/writing from a file does not result in a performance degradation.
+
+Our last guess was trying to complicate the pipeline adding some intermediate steps between reading and writing, 
+and for this reason we inserted in the computation steps a `toUpper` function which converts all characters in uppercase,
+and a `filter isAlphaNum`, which deletes all the puntuation characters.
+The two function became therefore: 
+
+```haskell
+withFile "input.txt" ReadMode $ \input ->
+    withFile "outputS.txt" WriteMode $ \output -> do
+        content <- hGetContents input
+        hPutStr output $ content
+```
+
+And:
+
+```haskell
+runConduitRes $ sourceFile "input.txt"
+    .| decodeUtf8C
+    .| omapCE toUpper
+    .| filterCE isAlphaNum
+    .| encodeUtf8C
+    .| sinkFile "outputC.txt"
+```
+
+The results became the following:
+
+![png](images/output_17_1.png)
+
+So we can see that the performance gain of the conduit version is much smaller, 
+and that indicates that the stream processing paradigm adds much overhead to the computation.
+
 
 
 # Distributed wordcount with network-conduit and async
