@@ -624,27 +624,27 @@ The following data tell how much time is being spent running the program itself 
 and how much time spent in the garbage collector (GC time). 
 
 ```
-1,155,372,089,584 bytes allocated in the heap
-  57,899,648,064 bytes copied during GC
-   9,072,121,160 bytes maximum residency (17 sample(s))
-     103,302,392 bytes maximum slop
+1,155,372,089,504 bytes allocated in the heap
+  57,899,646,920 bytes copied during GC
+   9,072,121,152 bytes maximum residency (17 sample(s))
+     144,022,208 bytes maximum slop
             8651 MB total memory in use (0 MB lost due to fragmentation)
 
                                      Tot time (elapsed)  Avg pause  Max pause
-  Gen  0     1104943 colls,     0 par   45.906s  90.157s     0.0001s    0.0256s
-  Gen  1        17 colls,     0 par   32.969s  232.467s     13.6745s    137.4735s
+  Gen  0     1104943 colls,     0 par   41.828s  85.514s     0.0001s    0.0287s
+  Gen  1        17 colls,     0 par   34.578s  274.046s     16.1204s    164.3027s
 
   INIT    time    0.000s  (  0.000s elapsed)
-  MUT     time  539.594s  (1693.475s elapsed)
-  GC      time   78.875s  (322.624s elapsed)
-  EXIT    time    0.000s  (  0.016s elapsed)
-  Total   time  618.469s  (2016.116s elapsed)
+  MUT     time  519.828s  (1660.710s elapsed)
+  GC      time   76.406s  (359.560s elapsed)
+  EXIT    time    0.000s  (  0.018s elapsed)
+  Total   time  596.234s  (2020.289s elapsed)
 
   %GC     time       0.0%  (0.0% elapsed)
 
-  Alloc rate    2,141,188,791 bytes per MUT second
+  Alloc rate    2,222,604,037 bytes per MUT second
 
-  Productivity  87.2% of total user, 84.0% of total elapsed
+  Productivity  87.2% of total user, 82.2% of total elapsed
 ```
 
 Those are the results of the `wordcountCv3` execution, which show that the GC time is much less that the MUT time. 
