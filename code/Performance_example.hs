@@ -33,7 +33,7 @@ iterate_listC _ [] = return ()
 iterate_listC n (x:xs) = do
     appendFile "output.txt" ("Conduit version, list dimension: " ++ (show x) ++ "\n")
     evaluate_listC n x
-    iterate_list n xs
+    iterate_listC n xs
     
 evaluate_listC :: Int -> Int -> IO ()
 evaluate_listC 0 _ = return ()
