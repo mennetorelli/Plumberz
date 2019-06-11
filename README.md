@@ -373,7 +373,7 @@ The composition of pipelines in the three libraries are performed with the follo
 
 | *Pipes*  	    | *Tubes*       | *Conduit*                               
 |---------------|---------------|---------------
-| `>->`    	    | `><` 	        | `.|`
+| `>->`    	    | `><` 	        | `.| `
 
 Pipes allows to use the `>->` both between Proxies and between Producers/Pipes/Consumers thanks to Rank-N ghc extension.
 On the contrary, in Tubes the `><` operator can compose only matching Tubes, 
@@ -417,7 +417,7 @@ wordcount = withFile "input.txt" ReadMode $ \handle -> do
             $ (Data.Text.words . pack) content)
  ```
 
-The rationale is as follows: first of all the function reads from the input.txt file by means of withFile function, 
+The rationale is as follows: first of all the function reads from the input.txt file by means of `withFile` function, 
 then extracts the content with `hGetContents`, 
 and finally accumulates all the words contained in a hashmap by means of a `foldr` used with `(\x v -> insertWith (+) x 1 v)` function. 
 The words are obtained from the `String` read from the file using a combination of `fmap`s: 
@@ -619,7 +619,7 @@ To investigate this fact we evaluated again 20 times the `wordcountCv2` function
 we evaluated the executable with `+RTS -s` options, which allows to see how much time is spent in the garbage collector. 
 (For more information, see [Measuring performance](https://wiki.haskell.org/Performance/GHC#Measuring_performance).)
 
-The results highlight that, in fact, many of the time required to run `wordcountCv2` are in fact spent by the garbage collector.
+The results highlight that some of the time required to run `wordcountCv2` is spent in the garbage collector.
 The following data tell how much time is being spent running the program itself (MUT time), 
 and how much time spent in the garbage collector (GC time). 
 
@@ -647,7 +647,8 @@ and how much time spent in the garbage collector (GC time).
   Productivity  87.2% of total user, 82.2% of total elapsed
 ```
 
-Those are the results of the `wordcountCv3` execution, which show that the GC time is much less that the MUT time. 
+Those are the results of the `wordcountCv3` execution, which show that not only the MUT time is much smaller, 
+but also the GC time is much less that the compared to the GC time of `wordcountCv2`. 
 
 ```
 1,119,052,163,176 bytes allocated in the heap
