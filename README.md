@@ -373,7 +373,7 @@ The composition of pipelines in the three libraries are performed with the follo
 
 | *Pipes*  	    | *Tubes*       | *Conduit*                               
 |---------------|---------------|---------------
-| `>->`    	    | `><` 	        | `.| `
+| `>->`    	    | `><` 	        | `.|`
 
 Pipes allows to use the `>->` both between Proxies and between Producers/Pipes/Consumers thanks to Rank-N ghc extension.
 On the contrary, in Tubes the `><` operator can compose only matching Tubes, 
@@ -384,7 +384,7 @@ thanks to the unique datatype `ConduitT` and  `.|` operator.
 
 For what concerns the various operations contained in Prelude, each library reimplement them in terms of the specific datatypes. 
 Specifically, Pipes defines these functions in `Pipes.Prelude`, Tubes inside `Tubes.Util`, Conduit in `Data.Conduit`.
-For example, if we consider again the map function, in Pipes we can find , in Tubes , and in Conduit mapC, 
+For example, if we consider again the `map` function, both in Pipes and in Tubes we can find again `map`, and in Conduit `mapC`, 
 as we have seen in the various examples of this discussion.
 
 
